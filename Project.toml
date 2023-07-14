@@ -1,0 +1,13 @@
+name = "EBJJ"
+uuid = "556eb071-0f36-4095-800c-004edc491a89"
+authors = ["manueloid <manuel.odelli@gmail.com> and contributors"]
+version = "1.0.0-DEV"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
