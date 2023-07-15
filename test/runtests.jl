@@ -2,5 +2,5 @@ using EBJJ
 using Test
 
 @testset "EBJJ.jl" begin
-    # Write your tests here.
+    @test ControlFull().N == 30
 end
