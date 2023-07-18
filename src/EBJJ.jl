@@ -13,9 +13,16 @@ Then, for a list of the packages I need, here is the list and where I use them:
 =#
 module EBJJ
 
-include("base.jl")
+using Revise # This is just used during development
+using ForwardDiff
 
+include("base.jl")
 export ControlFull
 export ControlInt
+
+include("polynomials.jl")
+export auxiliary
+export control_function
+
 
 end
