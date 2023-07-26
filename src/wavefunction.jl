@@ -42,7 +42,7 @@ By what I have already described in a different file, we can simplify the produc
 This simplification can be described as a product of three factors:
 
 1. the normalisation factor, which is the same as the one for the Harmonic Oscillator 
-$$\frac{\xi_0}{\sqrt{\pi } \sqrt{b(t)} \sqrt{2^n n! b(t)}}$$
+$$ \xi_0 \left( \pi b^2(t) 2^n n! \right)^{-1/2}$$
 
 2. the imaginary phase, given by 
 $$\exp^\left\{i n \int_0^t \frac{\xi_0^2 U}{2 b(\tau )^2} \, d\tau \right\}$$
@@ -51,6 +51,23 @@ $$\exp^\left\{i n \int_0^t \frac{\xi_0^2 U}{2 b(\tau )^2} \, d\tau \right\}$$
 $$ (-i)^n|\alpha|^2 \left( \alpha^{*2}\beta^{2} -1\right)^{n/2}$$
 
 The first and the third one are easy to implement, the second one is a little bit harder as there is an implicit integral in the exponential.
+
+### 2.1 Normalisation factor
+The normalisation factor depends on the energy level $ n $ and it will be a function of time.
+=#
+"""
+    `normalisation(n, t, c::Control)` 
+Returns the normalisation factor as a function of the energy level `n` and at the time `t`.
+"""
+function normalisation(n, t, c::Control)
+    ξ0, N = scaling_ξ0(c), c.N # Definition of the constants
+    b(t) = auxiliary(t, c) # Auxiliary function
+    return ξ0 * (pi * b(t)^2 * 2^n * factorial(n))^-0.5
+end
+
+#=
+### 2.2 Imaginary phase
+As said earlier, this function is quite tricky from a numerical point of view, as the implicit integral is not easy to evaluate.
 To overcome this problem, I need to figure out what is the best way to implement the integral.
 I think my best take is to try to interpolate the integral function and then define a new one, instead of calling the `quadgk` function recursively.
 After some tests, I found that the interpolation with 1000 points is the best compromise between speed and accuracy.
@@ -87,4 +104,19 @@ function imaginary_phase(n, t, c::Control; npoints=1000)
     ξ0, U = scaling_ξ0(c), c.U # Definition of the constants
     itp = interpolation_integral(c, npoints=npoints) # Interpolation of the integral
     return exp(im * n * ξ0^2 * U / 2 * itp(t))
+end
+
+#=
+### 2.3 Fourier transform factor
+This term comes from the Fourier transform of the product between a Gaussian function and a Hermite polynomial.
+It is a function of the time `t` and of the control object `c`, as well as of the energy level `n`.
+=#
+
+"""
+    `fourier_factor(n, t, c::Control)`
+Return the Fourier transform factor as a function of the energy level `n`, the time `t` and the control object `c`.
+"""
+function fourier_factor(n, t, c::Control)
+    αc(t), β(t) = conj(gaussian_arg(t, c)), hermite_arg(t, c) # Arguments of the Gaussian and Hermite functions
+    return (-im)^n * abs(αc(t))^2 * (αc(t)^2 * β(t)^2 - 1)^(n / 2)
 end

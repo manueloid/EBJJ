@@ -12,4 +12,6 @@ using Interpolations
 using BenchmarkTools
 
 c = ControlFull(10, 0.2)
-@btime EBJJ.imaginary_phase(2, 0.1, c)
+φ(t) = EBJJ.imaginary_phase(2, t, c)
+trange = range(0.0, c.T, length=100)
+@test real.(φ.(trange) .* conj.(φ.(trange))) ≈ ones(100)
