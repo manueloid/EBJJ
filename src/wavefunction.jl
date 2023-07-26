@@ -1,38 +1,63 @@
 #=
 # STA Wave function 
 
-Here I will implement the STA wave function that I will use to calculate the eSTA corrections.
-All the calculations have been implemented in another file and I am not going to repeat them here.
-In writing this code, I will assume that the calculations are correct.
+I need to things slowly and carefully, and write tests along the way.
+In this file I will only focus on defining the wave function, in a different one I will actually evaluate the eSTA corrections.
 
-There is a lot to unpack here, so let us start from the part of the wave function that is not dependent on the position variable $z$.
+## 1. Constant factor and helpful functions
 
-### 1. Normalization factor
-
-This is probably the easiest part of the wave function. The normalization factor is given by
-$$
-\begin{equation}
-     \left(\frac{1}{\pi}\sqrt{\frac{8J_{0}N}{U}}\right)^{1/4} % normalisation factor 
-     \tag{1}
-\begin{equation}
-$$
-In this case then I need to extract all the parameters from the `Control` type and then calculate the normalization factor.
-This is pretty straightforward so I can use an one-liner function.
+First I will start by defining the constant factor $\xi_0$ and the functions $\alpha(t)$ and $\beta(t)$ that go into the Fourier transform of the STA wave function.
+The names of the function will be (respectively) `scaling_ξ0`, `gaussian_arg` and `hermite_arg`.
 =#
 
-normalisation(c::Control) = (1/pi*sqrt(8*c.J0*c.N/c.U))^(1/4)
+scaling_ξ0(c::Control) = sqrt(8c.J0 * c.N / c.U)
+"""
+    `gaussian_arg(t, c::Control)` 
+    This function maps the argument of the Gaussian exponential of the STA wave function to the argument of the standard Gaussian function used to evaluate the Fourier transform of the product between a Gaussian function and a Hermite polynomial.
+"""
+function gaussian_arg(t, c::Control)
+    ξ0, U, N = scaling_ξ0(c), c.U, c.N # Definition of the constants
+    b(t) = auxiliary(t, c) # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
+    return -N * sqrt(U) * b(t) / # Numerator 
+           sqrt(
+        ξ0^2 * U -          # First term in the denominator
+        2 * im * b(t) * db(t)  # Second term in the denominator
+    )
+end
+"""
+    `hermite_arg(t, c::Control)`
+This function maps the argument of the Hermite polynomial of the STA wave function to the argument of the standard Gaussian function used to evaluate the Fourier transform of the product between a Gaussian function and a Hermite polynomial.
+"""
+function hermite_arg(t, c::Control)
+    ξ0, N = scaling_ξ0(c), c.N # Definition of the constants
+    b(t) = auxiliary(t, c) # Auxiliary function
+    return ξ0 / (N * b(t))
+end
 
 #=
-### 2. Time dependend phase
+## 2. Exclusively time dependent part
 
-This part is the one that is purely imaginary and it is given by
-$$
-\begin{equation}
-	\exp\left\{-i(n + 1/2)\ \int_{0}^{t}d \tau \frac{J_{0}}{d(\tau)^{2}}\right\} % time dependent phase factor
-    \tag{2}
-\end{equation}
-$$
+By what I have already described in a different file, we can simplify the product of the time dependent parts of the STA functions.
+This simplification can be described as a product of three factors:
 
-I had this problem before, where it looks like the integral part of the phase factor creates some issues when calculating the integral.
+1. the normalisation factor, which is the same as the one for the Harmonic Oscillator 
+$$\frac{\xi_0}{\sqrt{\pi } \sqrt{b(t)} \sqrt{2^n n! b(t)}}$$
+
+2. the imaginary phase, given by 
+$$\exp^\left\{i n \int_0^t \frac{\xi_0^2 U}{2 b(\tau )^2} \, d\tau \right\}$$
+
+3. The factor coming from the Fourier transform 
+$$ (-i)^n|\alpha|^2 \left( \alpha^{*2}\beta^{2} -1\right)^{n/2}$$
+
+The first and the third one are easy to implement, the second one is a little bit harder as there is an implicit integral in the exponential.
+To overcome this problem, I need to figure out what is the best way to implement the integral.
+I think my best take is to try to interpolate the integral function and then define a new one, instead of calling the `quadgk` function recursively.
+
 =#
+
+phase_integrand(t, c::Control) = 1 / auxiliary(t, c)^2
+using QuadGK
+int(t) = quadgk(t -> phase_integrand(t, c), 0, t)[1]
+int(0.2)
 

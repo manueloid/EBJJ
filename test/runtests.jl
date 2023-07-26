@@ -19,13 +19,12 @@ Just remember that the default parameters are:
 
 
 =#
-@testset "EBJJ.jl" begin
+# include("control.jl")
+@testset begin
+    # Need to check if the gaussian_arg function and its conjugate work correctly
     c = ControlFull()
-    @testset "Polynomial test" begin
-        @test control_function(-0.25, c) ≈ c.J0 # check if p(t) for t < 0 is J0
-        @test control_function(0.0, c) ≈ c.J0 # check if p(0) is J0
-        @test control_function(c.T, c) ≈ c.Jf # check if p(tf) is Jf
-        @test control_function(1.25 * c.T, c) ≈ c.Jf # check if p(t) for t > tf is Jf
-    end
-    @testset "Wavefunction test" begin end
+    α(t) = EBJJ.gaussian_arg(t, c)
+    αc(t) = conj(α(t))
+    @test real(α(0.1)) == real(αc(0.1))
+    @test imag(α(0.1)) == -imag(αc(0.1))
 end

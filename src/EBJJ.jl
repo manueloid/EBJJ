@@ -13,10 +13,18 @@ Then, for a list of the packages I need, here is the list and where I use them:
 =#
 module EBJJ
 
+# Packages used in development
 using Revise # This is just used during development
+using Cthulhu # This is used to speed up the code
+using BenchmarkTools # This is used to benchmark the code
+
+# Packages used in the code
 using ForwardDiff
+using QuadGK
+using Interpolations
 
 include("base.jl")
+export Control
 export ControlFull
 export ControlInt
 
@@ -24,5 +32,6 @@ include("polynomials.jl")
 export auxiliary
 export control_function
 
+include("wavefunction.jl")
 
 end
