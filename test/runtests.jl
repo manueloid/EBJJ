@@ -20,11 +20,4 @@ Just remember that the default parameters are:
 
 =#
 # include("control.jl")
-@testset begin
-    # Need to check if the gaussian_arg function and its conjugate work correctly
-    c = ControlFull()
-    α(t) = EBJJ.gaussian_arg(t, c)
-    αc(t) = conj(α(t))
-    @test real(α(0.1)) == real(αc(0.1))
-    @test imag(α(0.1)) == -imag(αc(0.1))
-end
+include("wavefunction_test.jl")
