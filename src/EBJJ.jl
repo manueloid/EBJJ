@@ -22,6 +22,7 @@ using BenchmarkTools # This is used to benchmark the code
 using ForwardDiff
 using QuadGK
 using Interpolations
+using SpecialPolynomials
 
 include("base.jl")
 export Control
