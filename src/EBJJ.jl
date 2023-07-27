@@ -34,5 +34,8 @@ export auxiliary
 export control_function
 
 include("wavefunction.jl")
+export ground_state
+export time_dependent
+export spatial
 
 end
