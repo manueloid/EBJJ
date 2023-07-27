@@ -134,6 +134,8 @@ The keyword argument `npoints` is the number of points used to interpolate the i
 function time_dependent(n, t, c::Control; npoints=1000)
     return normalisation(n, t, c) * imaginary_phase(n, t, c; npoints=npoints) * fourier_factor(n, t, c)
 end
+precompile(time_dependent, (Int64, Float64, ControlFull))
+precompile(time_dependent, (Int64, Float64, ControlInt))
 
 #=
 ## 3. Spatial part of the wave function
@@ -184,3 +186,5 @@ This is already the complex conjugate, as it is the left term of the inner produ
 function spatial(n, t, z, c::Control)
     return conj(ground_state(t, z, c)) * hermite(n, t, z, c)
 end
+precompile(spatial, (Int64, Float64, Float64, ControlFull))
+precompile(spatial, (Int64, Float64, Float64, ControlInt))
