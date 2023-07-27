@@ -133,7 +133,7 @@ Return the time dependent part of the STA wave function, as a function of the en
 The keyword argument `npoints` is the number of points used to interpolate the integral in the imaginary phase function.
 """
 function time_dependent(n, t, c::Control, integral_func::Function)
-    return normalisation(n, t, c) * imaginary_phase_pr(n, t, c, integral_func) * fourier_factor(n, t, c)
+    return normalisation(n, t, c) * imaginary_phase(n, t, c, integral_func) * fourier_factor(n, t, c)
 end
 precompile(time_dependent, (Int64, Float64, ControlFull, Function))
 precompile(time_dependent, (Int64, Float64, ControlInt, Function))
@@ -183,6 +183,7 @@ Now we only need to put the two together to obtain the spatial term of the STA w
 `spatial(n, t, z, c::Control)`
 Return the spatial part of the STA wave function, as a function of the energy level `n`, time `t`, space `z` and control parameters `c`.
 This is already the complex conjugate, as it is the left term of the inner product.
+In simpler terms, this is the spatial term for ⟨χₙ| .
 """
 function spatial(n, t, z, c::Control)
     return conj(ground_state(t, z, c)) * hermite(n, t, z, c)

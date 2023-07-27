@@ -33,8 +33,28 @@ interpolated_values, integral_values = interpolation_check(c, npoints=1000, chec
 @test isapprox(interpolated_values, integral_values, atol=1e-3)
 
 #=
-## 2. Normalisation of the wave function
+## 2. Checking orthogonality
 
-Since I defined all the terms of the STA wave function, now I can write the full wave function and check the normalisation for different times
+The functions that I implemented, make it extremely easy to check the orthogonality of the wave functions.
+In particular, I can just fix a time and then take the integral of the two spatial parts of the wave functions.
+This should be 0, I shouldn't even need to use the purely time-dependent terms.
 =#
 
+"""
+    `orthogonality_check(n, t, c::Control)`
+Checks the orthogonality of the nth state and the ground state, by evaluating the integral from -1 to 1.
+"""
+function orthogonality_check(n, t, c::Control)
+    integrand(x) = conj(ground_state(t, x, c)) * ground_state(t, x, c)
+    return quadgk(x -> integrand(x), -10.0, 10.0)[1]
+end
+
+@testset "Orthogonality" begin
+    c = ControlFull(10, 0.1)
+    @test isapprox(orthogonality_check(1, 0.0, c), 0.0, atol=1e-3)
+    @test isapprox(orthogonality_check(2, 0.0, c), 0.0, atol=1e-3)
+    @test isapprox(orthogonality_check(3, 0.0, c), 0.0, atol=1e-3)
+    @test isapprox(orthogonality_check(4, 0.0, c), 0.0, atol=1e-3)
+end
+
+test
