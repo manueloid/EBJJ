@@ -92,7 +92,7 @@ function interpolation_integral(c::Control; npoints=1000)
     return t -> itp(t)
 end
 """
-    `imaginary_phase_pr(n, t, c::Control; npoints=1000)`
+    `imaginary_phase(n, t, c::Control; npoints=1000)`
 This function returns the imaginary phase of the product of the nth STA wave function and the ground state, as defined in the notes.
 
 The argument it takes are 
@@ -102,7 +102,7 @@ The argument it takes are
 - `integral_func` which is the integral function that goes into the exponential, it could be either the interpolated function or the actual integral function.
 
 """
-function imaginary_phase_pr(n, t, c::Control, integral_func::Function)
+function imaginary_phase(n, t, c::Control, integral_func::Function)
     ξ0, U = scaling_ξ0(c), c.U # Definition of the constants
     return exp(im * n * ξ0^2 * U / 2 * integral_func(t))
 end
