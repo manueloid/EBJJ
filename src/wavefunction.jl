@@ -80,6 +80,7 @@ Then I will define the actual phase function `imaginary_phase(t, c::Control)` th
     `interpolation_integral(c::Control; npoints=1000)`
 This function interpolates the values of the integral of the phase function, and returns a function that can be evaluated at any point in the interval [0, T].
 This function takes a keyword argument `npoints` which is the number of points used to interpolate the integral, default value is 1000 which is a good compromise between speed and accuracy.
+It returns a function that can be evaluated at any point in the interval [0, T].
 This is only the integral of 1/b(t)^2, so it is not the phase function itself.
 """
 function interpolation_integral(c::Control; npoints=1000)
@@ -88,22 +89,22 @@ function interpolation_integral(c::Control; npoints=1000)
     trange = range(0.0, c.T, length=npoints)
     integral_values = [int(t) for t in trange]
     itp = linear_interpolation(trange, integral_values)
-    return itp
+    return t -> itp(t)
 end
 """
-    `imaginary_phase(t, c::Control; npoints=1000)`
-This function returns the imaginary phase of the STA wave function, as defined in the notes.
+    `imaginary_phase_pr(n, t, c::Control; npoints=1000)`
+This function returns the imaginary phase of the product of the nth STA wave function and the ground state, as defined in the notes.
+
 The argument it takes are 
 - `n` which is the level of excitation of the wave function
 - `t` which is the time at which the wave function is evaluated
 - `c` which is the control object, containing all the parameters of the system
+- `integral_func` which is the integral function that goes into the exponential, it could be either the interpolated function or the actual integral function.
 
-This function also takes a keyword argument `npoints` which is the number of points used to interpolate the integral.
 """
-function imaginary_phase(n, t, c::Control; npoints=1000)
+function imaginary_phase_pr(n, t, c::Control, integral_func::Function)
     ξ0, U = scaling_ξ0(c), c.U # Definition of the constants
-    itp = interpolation_integral(c, npoints=npoints) # Interpolation of the integral
-    return exp(im * n * ξ0^2 * U / 2 * itp(t))
+    return exp(im * n * ξ0^2 * U / 2 * integral_func(t))
 end
 
 #=
@@ -131,11 +132,11 @@ Here I will just implement the whole time dependent part of the wave function, j
 Return the time dependent part of the STA wave function, as a function of the energy level `n` and the time `t`, for a given set of control parameter `c`.
 The keyword argument `npoints` is the number of points used to interpolate the integral in the imaginary phase function.
 """
-function time_dependent(n, t, c::Control; npoints=1000)
-    return normalisation(n, t, c) * imaginary_phase(n, t, c; npoints=npoints) * fourier_factor(n, t, c)
+function time_dependent(n, t, c::Control, integral_func::Function)
+    return normalisation(n, t, c) * imaginary_phase_pr(n, t, c, integral_func) * fourier_factor(n, t, c)
 end
-precompile(time_dependent, (Int64, Float64, ControlFull))
-precompile(time_dependent, (Int64, Float64, ControlInt))
+precompile(time_dependent, (Int64, Float64, ControlFull, Function))
+precompile(time_dependent, (Int64, Float64, ControlInt, Function))
 
 #=
 ## 3. Spatial part of the wave function

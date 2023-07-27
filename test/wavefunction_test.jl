@@ -31,3 +31,10 @@ end
 c = ControlFull(10, 1.0)
 interpolated_values, integral_values = interpolation_check(c, npoints=1000, checkpoints=10000)
 @test isapprox(interpolated_values, integral_values, atol=1e-3)
+
+#=
+## 2. Normalisation of the wave function
+
+Since I defined all the terms of the STA wave function, now I can write the full wave function and check the normalisation for different times
+=#
+
