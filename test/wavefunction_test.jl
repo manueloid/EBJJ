@@ -32,7 +32,9 @@ end
 
 c = ControlFull(10, 1.0)
 interpolated_values, integral_values = interpolation_check(c, npoints=1000, checkpoints=10000)
-@test isapprox(interpolated_values, integral_values, atol=1e-3)
+@testset "Approximation of the integral function" begin
+    @test isapprox(interpolated_values, integral_values, atol=1e-3)
+end
 
 #=
 ## 2. Thourough test of the wave functions.
@@ -77,7 +79,7 @@ Again, I will this is the momentum representation of the wave function, and what
     `normalisation(c::Control)`
 Returns the normalisation factor of the wave function.
 """
-normalisation(c::Control) = sqrt(scaling_ξ0(c) / (π)^0.25)
+normalisation(c::Control) = sqrt(EBJJ.scaling_ξ0(c) / (π)^0.25)
 """
     `gaussian(t, p, c::Control)`
 Returns the value of the Gaussian term at a given time `t` and momentum `p`.
@@ -93,7 +95,7 @@ end
 Returns the value of the Hermite polynomial at a given momentum `p`, index `n` and time `t`.
 """
 function hermite(n, t, p, c::Control)
-    ξ0 = scaling_ξ0(c) # constants
+    ξ0 = EBJJ.scaling_ξ0(c) # constants
     b(t) = auxiliary(t, c) # Auxiliary function
     return SpecialPolynomials.basis(Hermite, n)(p * ξ0 / b(t)) # Hermite polynomial
 end
@@ -113,8 +115,8 @@ function wave_function(n, t, p, c::Control)
     ξ0, U = EBJJ.scaling_ξ0(c), c.U # constants
     b(t) = auxiliary(t, c) # Auxiliary function
     db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    normalisation = sqrt(scaling_ξ0(c) / (π)^0.25) # Normalisation factor
-    itp = interpolation_integral(c) # Interpolating function for the integral of the phase
+    normalisation = sqrt(EBJJ.scaling_ξ0(c) / (π)^0.25) # Normalisation factor
+    itp = EBJJ.interpolation_integral(c) # Interpolating function for the integral of the phase
     imaginary_phase(n, t) = exp(-im * (n + 0.5) * itp(t)) # Imaginary phase
     gaussian(t, p) = exp(0.5 * p^2 * (-ξ0^2 / b(t)^2 + 2im * db(t) / (U * b(t)))) # Gaussian term
     hermite(n, t, p) = SpecialPolynomials.basis(Hermite, n)(p * ξ0 / b(t)) # Hermite polynomial
@@ -126,7 +128,7 @@ end
 This function is the product of the smaller functions I defined earlier.
 """
 function wave_function_split(n, t, p, c::Control)
-    itp = interpolation_integral(c) # Interpolating function for the integral of the phase
+    itp = EBJJ.interpolation_integral(c) # Interpolating function for the integral of the phase
     imaginary_phase(n, t) = exp(-im * (n + 0.5) * itp(t)) # Imaginary phase
     return normalisation(c) * imaginary_phase(n, t) * gaussian(t, p, c) * hermite(n, t, p, c) / excitation(n, t, c)
 end
@@ -136,6 +138,8 @@ end
     t = 0.0
     zrange = -10.0:0.1:10.0
     @test [wave_function(0, t, z, c) for z in zrange] ≈ [wave_function_split(0, t, z, c) for z in zrange]
+    @test [wave_function(2, t, z, c) for z in zrange] ≈ [wave_function_split(2, t, z, c) for z in zrange]
+    @test [wave_function(5, t, z, c) for z in zrange] ≈ [wave_function_split(5, t, z, c) for z in zrange]
 end
 ### 2.2 Wave function with simplification
 
@@ -166,4 +170,3 @@ end
     @test isapprox(orthogonality_check(4, 0.0, c), 0.0, atol=1e-3)
 end
 =#
-test
