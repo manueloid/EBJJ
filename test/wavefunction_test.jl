@@ -157,10 +157,10 @@ This will be done with the `QuadGK` package.
 
 c = ControlFull(10, 0.1)
 t = c.T
-@btime quadgk(x -> wave_function(0, t, x, c), -10.0, 10.0)
-@btime quadgk(x -> wave_function_split(0, t, x, c), -10.0, 10.0)
-@btime quadgk(x -> wave_function(2, t, x, c), -10.0, 10.0)
-@btime quadgk(x -> wave_function_split(2, t, x, c), -10.0, 10.0)
+# @btime quadgk(x -> wave_function(0, t, x, c), -10.0, 10.0)
+# @btime quadgk(x -> wave_function_split(0, t, x, c), -10.0, 10.0)
+# @btime quadgk(x -> wave_function(2, t, x, c), -10.0, 10.0)
+# @btime quadgk(x -> wave_function_split(2, t, x, c), -10.0, 10.0)
 
 #=
 There is no clear difference in the time it takes to integrate the two functions.
@@ -177,8 +177,41 @@ The simplified version of the wave function is the function $ |\chi_n(p, t)|^2 $
 Finally I will benchmark the normalisation of the two functions, in theory the simplified version should be (a lot) faster.
 =#
 """
-
+    `normalisation(n, t, c::Control)`
+Take the nth wave function, calculate the absolute value squared and integrate it over all space.
+The result is given at a time `t`.
 """
+function normalisation(n, t, c::Control)
+    return quadgk(x -> abs2(wave_function(n, t, x, c)), -10.0, 10.0)[1]
+end
+"""
+    `wave_function_simplified(n, t, p, c::Control)`
+Gives the value of the absolute value squared of the wave function, at a given time and momentum, with all the simplifications carried out.
+"""
+function wave_function_simplified(n, t, p, c::Control)
+    ξ0 = EBJJ.scaling_ξ0(c) # constants (no U is needed in this case)
+    b(t) = auxiliary(t, c) # Auxiliary function (no derivative is needed)
+    normalisation = ξ0 / sqrt(π) # Normalisation factor
+    gaussian(t, p) = exp(p^2 * (-ξ0^2 / b(t)^2)) # Gaussian term
+    hermite(n, t, p) = SpecialPolynomials.basis(Hermite, n)(p * ξ0 / b(t)) # Hermite polynomial
+    excitation(n, t) = 2^n * factorial(n) * b(t) # Excitation term
+    return normalisation * gaussian(t, p) * hermite(n, t, p)^2 / excitation(n, t)
+end
+"""
+    `normalisation_simplified(n, t, c::Control)`
+Similar to `normalisation`, but using the simplified version of the wave function.
+"""
+function normalisation_simplified(n, t, c::Control)
+    return quadgk(x -> wave_function_simplified(n, t, x, c), -10.0, 10.0)[1]
+end
+@testset "Normalisation momentum space" begin
+    c = ControlFull(10, 0.1)
+    t = 0.1
+    n = 2
+    # @test isapprox(normalisation(n, t, c) |> real, 1.0)
+    @test isapprox(normalisation_simplified(n, t, c), 1.0)
+end
+
 
 #=
 ## . Checking orthogonality
