@@ -79,7 +79,7 @@ Again, I will this is the momentum representation of the wave function, and what
     `normalisation(c::Control)`
 Returns the normalisation factor of the wave function.
 """
-normalisation(c::Control) = sqrt(EBJJ.scaling_ξ0(c) / (π)^0.25)
+normalisation(c::Control) = sqrt(EBJJ.scaling_ξ0(c)) / (π)^0.25
 """
     `gaussian(t, p, c::Control)`
 Returns the value of the Gaussian term at a given time `t` and momentum `p`.
@@ -115,9 +115,9 @@ function wave_function(n, t, p, c::Control)
     ξ0, U = EBJJ.scaling_ξ0(c), c.U # constants
     b(t) = auxiliary(t, c) # Auxiliary function
     db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    normalisation = sqrt(EBJJ.scaling_ξ0(c) / (π)^0.25) # Normalisation factor
+    normalisation = sqrt(EBJJ.scaling_ξ0(c)) / (π)^0.25 # Normalisation factor
     itp = EBJJ.interpolation_integral(c) # Interpolating function for the integral of the phase
-    imaginary_phase(n, t) = exp(-im * (n + 0.5) * itp(t)) # Imaginary phase
+    imaginary_phase(n, t) = exp(-im * (n + 0.5) * ξ0^2 * U / 2 * itp(t)) # Imaginary phase
     gaussian(t, p) = exp(0.5 * p^2 * (-ξ0^2 / b(t)^2 + 2im * db(t) / (U * b(t)))) # Gaussian term
     hermite(n, t, p) = SpecialPolynomials.basis(Hermite, n)(p * ξ0 / b(t)) # Hermite polynomial
     excitation(n, t) = sqrt(2^n * factorial(n) * b(t)) # Excitation term
@@ -128,8 +128,9 @@ end
 This function is the product of the smaller functions I defined earlier.
 """
 function wave_function_split(n, t, p, c::Control)
+    ξ0, U = EBJJ.scaling_ξ0(c), c.U # constants
     itp = EBJJ.interpolation_integral(c) # Interpolating function for the integral of the phase
-    imaginary_phase(n, t) = exp(-im * (n + 0.5) * itp(t)) # Imaginary phase
+    imaginary_phase(n, t) = exp(-im * (n + 0.5) * ξ0^2 * U / 2 * itp(t)) # Imaginary phase
     return normalisation(c) * imaginary_phase(n, t) * gaussian(t, p, c) * hermite(n, t, p, c) / excitation(n, t, c)
 end
 
@@ -182,7 +183,7 @@ Take the nth wave function, calculate the absolute value squared and integrate i
 The result is given at a time `t`.
 """
 function normalisation(n, t, c::Control)
-    return quadgk(x -> abs2(wave_function(n, t, x, c)), -10.0, 10.0)[1]
+    return quadgk(x -> conj(wave_function(n, t, x, c)) * wave_function(n, t, x, c), -10.0, 10.0)[1]
 end
 """
     `wave_function_simplified(n, t, p, c::Control)`
@@ -202,14 +203,18 @@ end
 Similar to `normalisation`, but using the simplified version of the wave function.
 """
 function normalisation_simplified(n, t, c::Control)
-    return quadgk(x -> wave_function_simplified(n, t, x, c), -10.0, 10.0)[1]
+    return quadgk(x -> wave_function_simplified(n, t, x, c), -1.0, 1.0)[1]
 end
 @testset "Normalisation momentum space" begin
     c = ControlFull(10, 0.1)
-    t = 0.1
+    t = [0.0, c.T / 2, c.T]
     n = 2
-    # @test isapprox(normalisation(n, t, c) |> real, 1.0)
-    @test isapprox(normalisation_simplified(n, t, c), 1.0)
+    for t in t
+        for n in n
+            @test isapprox(normalisation(n, t, c) |> real, 1.0)
+            @test isapprox(normalisation_simplified(n, t, c), 1.0)
+        end
+    end
 end
 
 
