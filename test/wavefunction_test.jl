@@ -216,31 +216,44 @@ end
         end
     end
 end
-
-
 #=
-## . Checking orthogonality
+### 2.3 Benchmarking
+Now I can benchmark the two normalisation functions.
+In theory the simplified version should be faster, because it doesn't have to calculate the imaginary part of the wave function.
+=#
+c = ControlFull(10, 0.1)
+t = 0.0
+n = 2
+# @btime normalisation(n, t, c)
+# @btime normalisation_simplified(2, t, c)
+#=
+As expected, the simplified version is faster.
+To sum up, we had 
+- `682.422 ms (214208 allocations: 53.29 MiB)` for the normalisation of the full wave function
+- `61.522 μs (698 allocations: 55.77 KiB)` for the normalisation of the simplified wave function
 
-The functions that I implemented, make it extremely easy to check the orthogonality of the wave functions.
-In particular, I can just fix a time and then take the integral of the two spatial parts of the wave functions.
-This should be 0, I shouldn't even need to use the purely time-dependent terms.
+### 2.4 Checking orthogonality
+Just for a sanity check, I will check that the wave functions are orthogonal.
+I will try only the full wave function, as I do not want ot implement the simplified version of the $\langle \chi_n | \chi_m \rangle$ integrand.
 =#
 
 """
-    `orthogonality_check(n, t, c::Control)`
-Checks the orthogonality of the nth state and the ground state, by evaluating the integral from -1 to 1.
+    `orthogonality_check(n,m, t, c::Control)`
+Checks the orthogonality of the nth state and the mth state, by evaluating the integral from -1 to 1 by performing the integral over z 
 """
-function orthogonality_check(n, t, c::Control)
-    integrand(x) = conj(ground_state(t, x, c)) * ground_state(t, x, c)
-    return quadgk(x -> integrand(x), -10.0, 10.0)[1]
+function orthogonality_check(n, m, t, c::Control)
+    integrand(z) = conj(wave_function(n, t, z, c)) * wave_function(m, t, z, c)
+    return quadgk(x -> integrand(x), -10.0, 10.0)[1] |> real
 end
 
-#=
 @testset "Orthogonality" begin
     c = ControlFull(10, 0.1)
-    @test isapprox(orthogonality_check(1, 0.0, c), 0.0, atol=1e-3)
-    @test isapprox(orthogonality_check(2, 0.0, c), 0.0, atol=1e-3)
-    @test isapprox(orthogonality_check(3, 0.0, c), 0.0, atol=1e-3)
-    @test isapprox(orthogonality_check(4, 0.0, c), 0.0, atol=1e-3)
+    t = [0.0, c.T / 2, c.T]
+    n = [0, 1, 2]
+    m = [3, 4, 5]
+    for t in t
+        for (n, m) in zip(n, m)
+            @test isapprox(orthogonality_check(n, m, t, c), 0.0)
+        end
+    end
 end
-=#
