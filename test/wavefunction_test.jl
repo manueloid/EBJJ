@@ -9,6 +9,8 @@ Then I will test if the values of the functions are similar up to a certain tole
 using QuadGK
 using Interpolations
 using BenchmarkTools
+using ForwardDiff
+using SpecialPolynomials
 using EBJJ
 
 """
@@ -119,8 +121,6 @@ function wave_function(n, t, p, c::Control)
     excitation(n, t) = sqrt(2^n * factorial(n) * b(t)) # Excitation term
     return normalisation * imaginary_phase(n, t) * gaussian(t, p) * hermite(n, t, p) / excitation(n, t)
 end
-
-
 
 ### 2.2 Wave function with simplification
 
