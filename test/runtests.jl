@@ -20,4 +20,4 @@ Just remember that the default parameters are:
 
 =#
 # include("control.jl")
-include("wavefunction_test.jl")
+# include("./wavefunction_tests/momentum_checks.jl")
