@@ -135,14 +135,50 @@ end
 
 @testset "Wave function test" begin
     c = ControlFull(10, 0.1)
-    t = 0.0
+    t = [0.0, c.T / 2, c.T]
     zrange = -10.0:0.1:10.0
-    @test [wave_function(0, t, z, c) for z in zrange] ≈ [wave_function_split(0, t, z, c) for z in zrange]
-    @test [wave_function(2, t, z, c) for z in zrange] ≈ [wave_function_split(2, t, z, c) for z in zrange]
-    @test [wave_function(5, t, z, c) for z in zrange] ≈ [wave_function_split(5, t, z, c) for z in zrange]
+    for n in 0:2
+        for t in t
+            for p in zrange
+                @test wave_function(n, t, p, c) ≈ wave_function_split(n, t, p, c)
+            end
+        end
+    end
 end
-### 2.2 Wave function with simplification
 
+#=
+### 2.2 Benchmarking
+
+In this part I am going to benchmark the two functions that I defined earlier.
+I am going to use the `BenchmarkTools` package to do this.
+I will integrate the two functions for a given time and then I will compare the time it takes to do so.
+This will be done with the `QuadGK` package.
+=#
+
+c = ControlFull(10, 0.1)
+t = c.T
+@btime quadgk(x -> wave_function(0, t, x, c), -10.0, 10.0)
+@btime quadgk(x -> wave_function_split(0, t, x, c), -10.0, 10.0)
+@btime quadgk(x -> wave_function(2, t, x, c), -10.0, 10.0)
+@btime quadgk(x -> wave_function_split(2, t, x, c), -10.0, 10.0)
+
+#=
+There is no clear difference in the time it takes to integrate the two functions.
+But I think I will with the first one so that everything is self contained.
+
+### 2.3 Normalisation
+Now I need to check that the wave functions are normalised.
+As I said, I will stick to the `wave_function` function, because it is more compact.
+The normalisation will be done by integrating the square of the wave function over all space.
+
+After that I will make a simplified version of the wave function I need to integrate, and check that it is normalised.
+The simplified version of the wave function is the function $ |\chi_n(p, t)|^2 $, where we can see that the imaginary part cancels out and the Gaussian term is $e^{p^2}$, instead of $e^{p^2/2}$.
+
+Finally I will benchmark the normalisation of the two functions, in theory the simplified version should be (a lot) faster.
+=#
+"""
+
+"""
 
 #=
 ## . Checking orthogonality
