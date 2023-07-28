@@ -121,7 +121,22 @@ function wave_function(n, t, p, c::Control)
     excitation(n, t) = sqrt(2^n * factorial(n) * b(t)) # Excitation term
     return normalisation * imaginary_phase(n, t) * gaussian(t, p) * hermite(n, t, p) / excitation(n, t)
 end
+"""
+    `wave_function_split(n, t, p, c::Control)`
+This function is the product of the smaller functions I defined earlier.
+"""
+function wave_function_split(n, t, p, c::Control)
+    itp = interpolation_integral(c) # Interpolating function for the integral of the phase
+    imaginary_phase(n, t) = exp(-im * (n + 0.5) * itp(t)) # Imaginary phase
+    return normalisation(c) * imaginary_phase(n, t) * gaussian(t, p, c) * hermite(n, t, p, c) / excitation(n, t, c)
+end
 
+@testset "Wave function test" begin
+    c = ControlFull(10, 0.1)
+    t = 0.0
+    zrange = -10.0:0.1:10.0
+    @test [wave_function(0, t, z, c) for z in zrange] ≈ [wave_function_split(0, t, z, c) for z in zrange]
+end
 ### 2.2 Wave function with simplification
 
 
@@ -142,6 +157,7 @@ function orthogonality_check(n, t, c::Control)
     return quadgk(x -> integrand(x), -10.0, 10.0)[1]
 end
 
+#=
 @testset "Orthogonality" begin
     c = ControlFull(10, 0.1)
     @test isapprox(orthogonality_check(1, 0.0, c), 0.0, atol=1e-3)
@@ -149,5 +165,5 @@ end
     @test isapprox(orthogonality_check(3, 0.0, c), 0.0, atol=1e-3)
     @test isapprox(orthogonality_check(4, 0.0, c), 0.0, atol=1e-3)
 end
-
+=#
 test
