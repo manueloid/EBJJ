@@ -58,7 +58,7 @@ $$ \exp \left(\frac{1}{2} p^2 \left(-\frac{\xi_0^2}{b(t)^2}+\frac{2 i b'(t)}{U b
 $$ \mathcal{H}_n\left(\frac{p \xi_0}{b(t)}\right). $$ 
 
 5. the factor depending on the excitiation, given by
-$$\sqrt{2^n n! b(t)}}$$
+$$1/\sqrt{2^n n! b(t)}}$$
 
 The functions I can reuse from the main code are the following:
 - `scaling_ξ0`
