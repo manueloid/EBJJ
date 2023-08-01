@@ -1,5 +1,6 @@
 * Struggle with the Fourier transform
 
+
 I am trying to understand how the FFT works.
 I do understand the Fourier transform of a continuous function, but I am struggling with the discrete Fourier transform.
 In particular, I am trying to understand how I can test the result of the FFT.
