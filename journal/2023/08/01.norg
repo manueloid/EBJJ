@@ -1,0 +1,12 @@
+* Struggle with the Fourier transform
+
+I am trying to understand how the FFT works.
+I do understand the Fourier transform of a continuous function, but I am struggling with the discrete Fourier transform.
+In particular, I am trying to understand how I can test the result of the FFT.
+Let us say that I have a function $f(x)$, and I want to compute its Fourier transform $F(k)$, and let us assume that I know the analytical expression of $F(k)$.
+I can compute the FFT of $f(x)$, and I get a set of complex numbers $F(k_i)$, where $k_i$ are the discrete values of $k$.
+How can I test that the FFT is correct?
+
+But how the $ k_i $ are connected to the $ x_i $?
+This is what I am going to learn in the next few days.
+
