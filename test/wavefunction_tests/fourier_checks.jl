@@ -32,28 +32,28 @@ I will check the normalisation for two different kinds of functions, that in the
 2. the product of the STA wave function in position representation and its complex conjugate with the simplifications already implemented in the function definition.
 
 For the moment I will just use the parameter $\alpha$ and $\beta$ to be complex numbers and I will check the normalisation for some fixed times.
-If everything works according to plan, I will then check if the same relation holds if I substitute $\alpha$ and $\beta$ with the respective time depending functions
+If everything works according to plan, I will then check if the same relation holds if I substitute $\alpha$ and $\beta$ with the respective time depending functions.
+
+Since calculating the normalisation in the case of general $\alpha$ and $\beta$ is quite cumbersome, I will only check the orthogonality. If that holds, I will then move on to define $\alpha$ and $\beta$ as functions of time.
 =#
 
 """
-    `spatial(n::Int64, p::Float64, α::ComplexF64, β::Float64)`
-Return the product of the Gaussian function and the Hermite polynomial in momentum representation and in terms of the parameters `α` and `β`.
-"""
-function spatial(n::Int64, p::Float64, α::ComplexF64, β::Float64)
-    return exp(-p^2 / (2 * α^2)) * SpecialPolynomials.basis(Hermite, n)(β * p)
-end
-"""
     `analytic(n::Int64, x::Float64, α::ComplexF64, β::Float64)`
-Return the analytic solution of the Fourier transform of the product of the Gaussian function and the Hermite polynomial in position representation and in terms of the parameters `α` and `β`.
+Return the value of the analytic solution of the Fourier transform of the product of a Gaussian function and a Hermite polynomial, at the point `x`.
 """
-analytic(n) = n
-
-@testset "Testing normalisation momentum for α and β" begin
-    α = 1.0 + 0.0 * im
-    β = 1.0
-    @test quadgk(
-        x -> abs(
-            spatial(2, x, 1.0 + 0.0 * im, 1.0) *
-            conj(spatial(0, x, 1.0 + 0.0 * im, 1.0))
-        ), -Inf, Inf)[1] ≈ sqrt(π)
+function analytic(n::Int64, x::Float64, α::ComplexF64, β::Float64)
+    γ = sqrt(2.0 * α^2 * β^2 - 1.0)
+    return im^n * α * exp(-α^2 * x^2 / 2.0) * γ^n * SpecialPolynomials.basis(Hermite, n)(x * α^2 * β / γ)
 end
+"""
+    `orthogonality_check(n::Int64, m::Int64, α::ComplexF64, β::Float64)`
+Take the integral over the variable `x` of two analytic solutions of the Fourier transform of the product of a Gaussian function and a Hermite polynomial, with different values of `n` and `m`.
+"""
+function orthogonality_check(n::Int64, m::Int64, α::ComplexF64, β::Float64)
+    return quadgk(x -> conj(analytic(n, x, α, β)) * analytic(m, x, α, β), -Inf, Inf)[1]
+end
+α = 0.2 + 1.3im
+β = 1.00
+n = 0
+m = 2
+ortho = orthogonality_check(n, m, α, β)
