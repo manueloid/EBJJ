@@ -50,10 +50,22 @@ end
 Take the integral over the variable `x` of two analytic solutions of the Fourier transform of the product of a Gaussian function and a Hermite polynomial, with different values of `n` and `m`.
 """
 function orthogonality_check(n::Int64, m::Int64, α::ComplexF64, β::Float64)
-    return quadgk(x -> conj(analytic(n, x, α, β)) * analytic(m, x, α, β), -Inf, Inf)[1]
+    return quadgk(x -> conj(analytic(n, x, α, β)) * analytic(m, x, α, β), -1e9, 1e9)[1]
 end
-α = 0.2 + 1.3im
-β = 1.00
-n = 0
-m = 2
-ortho = orthogonality_check(n, m, α, β)
+@testset "Orthogonality test, general α and β" begin
+    α = 0.4 + 0.3im
+    β = 0.07
+    # Check that the integral is zero if n != m
+    for n in 0:5, m in 0:5
+        if n != m
+            @test orthogonality_check(n, m, α, β) ≈ 0.0 + 0.0im
+        end
+    end
+end
+
+#=
+The test have been passed, so now I can use the actual values of $\alpha$ and $\beta$ and not some general ones.
+In particular, we have that:
+1. $$ \alpha^2 = 
+=#
+
