@@ -66,6 +66,33 @@ end
 #=
 The test have been passed, so now I can use the actual values of $\alpha$ and $\beta$ and not some general ones.
 In particular, we have that:
-1. $$ \alpha^2 = 
-=#
+1. $$ \alpha^2 = \left(- \frac{\xi_0^2}{b} + \frac{2i\dot{b}}{Ub} \right)^-1 $$
+2. $$ \beta = \frac{\xi_0}{b} $$
 
+The plan is to test both the orthogonality and the normalisation.
+I think the best plan now is to define two functions that will return the values of $\alpha $ and $\beta$ at a given time and then pass it to the function `analytic`.
+
+First I will check the orthogonality as it easier to do so, if that goes well I will continue with the normalisation, and implement multiple checks for it.
+
+I think the best way to implement the code is to put everything into a big function, as I need to define the auxiliary function $b(t)$, and it is not ideal to have the code redefine it every time.
+I will check if there is any more flexible and performant way to perform this task, but for the moment I only want to get the job done.
+=#
+"""
+    `wave_function(n, t, x, c::Control)`
+Return the value of the STA wave function in position representation at the point `x` and at time `t`, given the control parameters `c`.
+This is the function with absolutely no simplifications and it is the one I am going to test against.
+"""
+function wave_function(n, t, x, c::Control)
+    ξ0, U = EBJJ.scaling_ξ0(c), c.U # constants
+    b(t) = auxiliary(t, c) # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
+    normalisation = sqrt(EBJJ.scaling_ξ0(c)) / (π)^0.25 # Normalisation factor
+    itp = EBJJ.interpolation_integral(c) # Interpolating function for the integral of the phase
+    imaginary_phase(n, t) = exp(-im * (n + 0.5) * ξ0^2 * U / 2 * itp(t)) # Imaginary phase
+    α2(t) = (-ξ0^2 / b(t)^2 + 2im * db(t) / (U * b(t)))-1 # α^2 term to be used in the gaussian
+    β(t) = ξ0 / b(t) # β term to be used in the hermite polynomial
+    spatial(n,t,x) = analytic(n, x, sqrt(α2(t)), β(t)) # Spatial term
+    excitation(n, t) = sqrt(2^n * factorial(n) * b(t)) # Excitation term
+    return normalisation * excitation(n, t) * imaginary_phase(n, t) * spatial(n, t, x)
+end
+"""
