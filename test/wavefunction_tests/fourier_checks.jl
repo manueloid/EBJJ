@@ -94,25 +94,39 @@ function wave_function(n::Int64, t, x, c::Control)
     normalisation = sqrt(EBJJ.scaling_ξ0(c)) / (π)^0.25 # Normalisation factor
     itp = EBJJ.interpolation_integral(c) # Interpolating function for the integral of the phase
     imaginary_phase(n, t) = exp(-im * (n + 0.5) * ξ0^2 * U / 2 * itp(t)) # Imaginary phase
-    α2(t) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t))) - 1 # α^2 term to be used in the gaussian
+    α2(t) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t)))^(-1) # α^2 term to be used in the gaussian
     β(t) = ξ0 / b(t) # β term to be used in the hermite polynomial
     spatial(n, t, x) = analytic(n, x, sqrt(α2(t)), β(t)) # Spatial term
     excitation(n, t) = sqrt(2^n * factorial(n) * b(t)) # Excitation term
-    return normalisation * excitation(n, t) * imaginary_phase(n, t) * spatial(n, t, x)
+    return normalisation / excitation(n, t) * imaginary_phase(n, t) * spatial(n, t, x)
 end
-t = 0.1
-n = 1
-c = ControlFull()
-quadgk(x -> conj(wave_function(n, t, x, c)) * wave_function(n, t, x, c), -1, 1)[1]
 
 
-"""
-    `to_normalise(n, t, x, c::Control)`
-Return the simplified version of the STA wave function in position representation.
-It is of the form ⟨ψₙ(t)|ψₙ(t)⟩ where all the simplifications have been carried out.
-"""
-function to_normalise(n::Int64, t, x, c::Control)
-    ξ0 = EBJJ.scaling_ξ0(c) # constants (no U is needed in this case)
-    b(t) = auxiliary(t, c) # Auxiliary function (no derivative is needed)
-    normalisation = ξ0 / sqrt(π) # Normalisation factor
+to_normalise(n::Int64, t::Float64, c::Control) = quadgk(x -> conj(wave_function(n, t, x, c)) * wave_function(n, t, x, c), -1e3, 1e3, atol=1e-3)[1]
+to_normalise(0, 0.0, ControlFull())
+
+@testset "Normalisation of Fourier trasformed" begin
+    c = ControlFull()
+    trange = range(0.0, c.T, length=3) # Time range in which check the normalisation
+    nrange = 0:3
+    for n in nrange, t in trange
+        norm = to_normalise(n, t, c)
+        @test isapprox(real(norm), 1.0, atol=1e-3)
+        @test isapprox(imag(norm), 0.0, atol=1e-3)
+    end
+end
+
+to_orthogonal(n::Int64, m::Int64, t::Float64, c::Control) = quadgk(x -> conj(wave_function(n, t, x, c)) * wave_function(m, t, x, c), -1e3, 1e3, atol=1e-3)[1]
+to_orthogonal(0, 0, 0.0, ControlFull())
+
+@testset "Orthogonality of Fourier trasformed" begin
+    c = ControlFull()
+    trange = range(0.0, c.T, length=2) # Time range in which check the normalisation
+    nrange = 0:2
+    mrange = 3:5
+    for n in nrange, m in mrange, t in trange
+        orth = to_orthogonal(n, m, t, c)
+        @test isapprox(real(orth), 0.0, atol=1e-3)
+        @test isapprox(imag(orth), 0.0, atol=1e-3)
+    end
 end
