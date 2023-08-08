@@ -8,32 +8,66 @@ In this file I will only focus on defining the wave function, in a different one
 
 First I will start by defining the constant factor $\xi_0$ and the functions $\alpha(t)$ and $\beta(t)$ that go into the Fourier transform of the STA wave function.
 The names of the function will be (respectively) `scaling_ξ0`, `gaussian_arg` and `hermite_arg`.
+I have the feeling that it will make more sense to define everything in one big function instead of defining the constants and the functions separately, as I think it will save some precompilation time.
+It will also make sense as I do not have to define the auxiliary function `b(t)` twice.
+I have already found out that in this case there is not much to simplify, so I will just write the integrand as it is.
+
+I am going to use the fact that $ \alpha ^2 $ is the inverse of the argument of the Gaussian part in the STA wave function, and if we are going to call the argument $ \eta^2 $, the parameter $ \beta $ is nothing more than $ \sqrt{\Re{\eta^2}} $.
+
+Thus, we can simplify the term $ \alpha ^2 \beta ^2 -1 $ that appears twice in the Fourier transform of the product of the Gaussian term and the Hermite polynomial as $ \eta^{2*} / \eta^2 $
+=#
+
+"""
+    `spatial_fourier(n::Int64, t, z, η::ComplexF64)`
+Evaluate the analytic solution of the Fourier transform of the STA wave function for a complex number η, for a time `t` and at position `z`.
+The value η is nothing more than 1/α in the notes, while β is the real part of η.
+"""
+function spatial_fourier(n::Int64, z, η::ComplexF64)
+    γ = sqrt(conj(η) / η) # this is the √α²β² - 1 factor
+    num = sqrt(real(η)) / η # This is the numerator inside the Hermite polynomial
+    return exp(-z^2 / (2 * η)) * SpecialPolynomials.basis(Hermite, n)(z * num / γ)
+end
+ground_state(z, η::ComplexF64) = spatial_fourier(0, z, η)
+
+#=
+### 1.1 Integrand depdending on the $ b_h(z) $ function.
+
+I will start by defining a function that given (among other things) the time `t` and a position `x` returns the value of the integrand 
+$$
+\psi_{n}^{*}(t,x)   \left[ e^{-i\hat{p}} b_{h}(z) + b_{h}(z)e^{i\hat{p}} \right] \psi_{0}(t,x)
+$$
+where $ \psi_n(t,z) is the spatial part of the STA wave function.
 =#
 
 scaling_ξ0(c::Control) = sqrt(8c.J0 * c.N / c.U)
+bh(z::Float64, h::Float64) = abs(z) <= 1 ? √((1 + z + h) * (1 - z)) : 0.0 # One-line function that returns the piecewise function bₕ(z)
 """
-    `gaussian_arg(t, c::Control)` 
-    This function maps the argument of the Gaussian exponential of the STA wave function to the argument of the standard Gaussian function used to evaluate the Fourier transform of the product between a Gaussian function and a Hermite polynomial.
+    `bh_integrand(n::Int64, t, z, c::Control)`
+Evaluate the integrand of the Fourier transform of the STA wave function for a time `t` and at position `z` given the energy level `n`
 """
-function gaussian_arg(t, c::Control)
-    ξ0, U, N = scaling_ξ0(c), c.U, c.N # Definition of the constants
+function bh_integrand(n::Int64, t, z, c::Control)
+    ξ0, U, h = scaling_ξ0(c), c.U, 1 / c.N # Definition of the constants
     b(t) = auxiliary(t, c) # Auxiliary function
     db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    return -N * sqrt(U) * b(t) / # Numerator 
-           sqrt(
-        ξ0^2 * U -          # First term in the denominator
-        2 * im * b(t) * db(t)  # Second term in the denominator
+    η(t) = ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t))
+    result = conj(spatial_fourier(n, z, η(t))) *   # Left part of the integrand
+             (
+        bh(z - h, h) * ground_state(z - h, η(t)) +   #Second part of the right term of the integrand
+        bh(z, h) * ground_state(z + h, η(t))  #Second part of the right term of the integrand
     )
+    return result
 end
-"""
-    `hermite_arg(t, c::Control)`
-This function maps the argument of the Hermite polynomial of the STA wave function to the argument of the standard Gaussian function used to evaluate the Fourier transform of the product between a Gaussian function and a Hermite polynomial.
-"""
-function hermite_arg(t, c::Control)
-    ξ0, N = scaling_ξ0(c), c.N # Definition of the constants
-    b(t) = auxiliary(t, c) # Auxiliary function
-    return ξ0 / (N * b(t))
-end
+
+#=
+### 1.2 Integrand depending on the second derivative of the ground state
+
+In this section we are going to evaluate the integral of the form 
+$$ \langle \psi_n | \frac{d^2}{dz^2} | \psi_0 \rangle $$.
+
+This integral is non zero if $ n $ is even.
+
+Moreover, I could analytically take the second derivative of the ground state, to get
+=#
 
 #=
 ## 2. Exclusively time dependent part
