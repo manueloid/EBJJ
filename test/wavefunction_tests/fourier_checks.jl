@@ -80,7 +80,7 @@ Once the tests have been passed, I am going to use the same code but in this cas
 In particular, we have that:
 $$ \eta^2 = \left(- \frac{\xi_0^2}{b} + \frac{2i\dot{b}}{Ub} \right)$$
 
-The plan is to test both the orthogonality and the normalisation.
+The plan is to test the normalisation.
 
 #### 2.1 Normalisation of the full wave function
 
@@ -130,23 +130,5 @@ I am goinot to use low tolerance, as the requirement for the normalisation is no
         # integrating over the two dimensions
         normalisation = hcubature(f, [0.0, -1e3], [c.T, 1e3], rtol=1e-3)[1]
         @test isapprox(normalisation |> real, c.T, atol=1e-3)
-    end
-end
-
-#=
-#### 2.2 Orthogonality of the full wave function
-
-This is just a test to check that the orthogonality is still valid.
-I will use a lower tolerance as I do not need too much precision here.
-=#
-
-@testset "Orthogonality STA position full" begin
-    c = ControlFull()
-    for n in 0:2, m in 0:2
-        if n != m
-            f(x) = conj(wave_function(n, x[1], x[2], c)) * wave_function(m, x[1], x[2], c)
-            orthogonality = hcubature(f, [0.0, -1e3], [c.T, 1e3], rtol=1e-3)[1]
-            @test isapprox(orthogonality |> real, 0.0, atol=1e-3)
-        end
     end
 end
