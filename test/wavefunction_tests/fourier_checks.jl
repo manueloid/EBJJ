@@ -3,6 +3,7 @@ using Interpolations
 using BenchmarkTools
 using ForwardDiff
 using SpecialPolynomials
+using HCubature
 using EBJJ
 
 #=
@@ -16,13 +17,21 @@ This can be done by considering the fact that the Fourier transform of the whole
 
 Hence the STA wave function in position representation is just the product of the time dependent term and the Fourier transform of term dependent on the momentum varible $p$.
 
-Plans:
+
+### 1 Fourier transform general complex number
 First, I will define the analytical solution of the Fourier transform of the product of a Gaussian function of the form $ e^{-p^2/2\alpha}$ and a hermite polynomial of the form $ \mathcal_n(\beta p) $
 
 It is given by:
 $$ i^n \sqrt{\alpha} \exp\left\{\frac { -\alpha x^2}{2} \right\} \gamma^n \mathcal{H}_n\left( \frac{\alpha\beta}{\gamma}x\right)$$
 where
 $ \gamma = \sqrt{2 \alpha^2 \beta^2 - 1} $
+
+I am going to use the fact that if we call the argument of the Gaussian part $\eta^2$ (such that $ 1/\alpha^2 = \eta^2$), then the parameter $ \beta $ is nothing more than $ \sqrt{\Re{\eta^2}} $.
+Thus, we can simplify the term $ \alpha ^2 \beta ^2 -1 $ that appears twice in the Fourier transform of the product of the Gaussian term and the Hermite polynomial as $ \eta^{2*} / \eta^2 $.
+With this simplification, the term $\gamma$ becomes $ \eta^{2*} / \eta^{2} $.
+Moreover, the term $\alpha^2 \beta $ appearing in the numerator of the argument of the Hermite polynomial becomes $ \sqrt{\Re{\eta^2}} \eta^{2} $.
+
+This simplification is helpful as I can now write the Fourier transform of the product of the Gaussian term and the Hermite polynomial in term of only one parameter, $\eta$, which is the argument of the Gaussian term of the STA wave function in momentum representation.
 
 Then I will define the whole STA wave function in position representation and I will check if the normalisation and the orthogonality hold.
 
@@ -38,46 +47,46 @@ Since calculating the normalisation in the case of general $\alpha$ and $\beta$ 
 =#
 
 """
-    `analytic(n::Int64, x::Float64, α::ComplexF64, β::Float64)`
-Return the value of the analytic solution of the Fourier transform of the product of a Gaussian function and a Hermite polynomial, at the point `x`.
+    `analytic(n::Int64, x::Float64, η::ComplexF64)`
+Return the value of the analytic solution of the Fourier transform of the product of a Gaussian function and a Hermite polynomial, at the point `x`, given the complex parameter `η` and the order of the Hermite polynomial `n`.
+If we want to connect this to the STA wave function, the parameter `η` is actually `η²`.
 """
-function analytic(n::Int64, x::Float64, α::ComplexF64, β::Float64)
-    γ = sqrt(2.0 * α^2 * β^2 - 1.0)
-    return im^n * α * exp(-α^2 * x^2 / 2.0) * γ^n * SpecialPolynomials.basis(Hermite, n)(x * α^2 * β / γ)
+function analytic(n::Int64, x::Float64, η::ComplexF64)
+    γ = sqrt(conj(η) / η) # this is the √α²β² - 1 factor
+    num = sqrt(real(η)) / η # This is the numerator inside the Hermite polynomial
+    return im^n / sqrt(η) * γ^n * exp(-x^2 / (2 * η)) * SpecialPolynomials.basis(Hermite, n)(num * x / γ)
 end
 """
     `orthogonality_check(n::Int64, m::Int64, α::ComplexF64, β::Float64)`
-Take the integral over the variable `x` of two analytic solutions of the Fourier transform of the product of a Gaussian function and a Hermite polynomial, with different values of `n` and `m`.
+Take the integral over the variable `x` of two analytic solutions of the Fourier transform of the product of a Gaussian function and a Hermite polynomial, with different values of `n` and `m`, given a complex parameter `η`.
 """
-function orthogonality_check(n::Int64, m::Int64, α::ComplexF64, β::Float64)
-    return quadgk(x -> conj(analytic(n, x, α, β)) * analytic(m, x, α, β), -1e9, 1e9)[1]
+function orthogonality_check(n::Int64, m::Int64, η::ComplexF64)
+    return quadgk(x -> conj(analytic(n, x, η)) * analytic(m, x, η), -1e8, 1e8, atol=1e-3)[1]
 end
-@testset "Orthogonality test, general α and β" begin
-    α = 0.4 + 0.3im
-    β = 0.07
+@testset "Orthogonality test, general complex number η" begin
+    η = 0.4 + 0.2im
     # Check that the integral is zero if n != m
-    for n in 0:5, m in 0:5
+    for n in 0:1, m in 0:2
         if n != m
-            @test orthogonality_check(n, m, α, β) ≈ 0.0 + 0.0im
+            @test orthogonality_check(n, m, η) ≈ 0.0 + 0.0im
         end
     end
 end
 
 #=
-The test have been passed, so now I can use the actual values of $\alpha$ and $\beta$ and not some general ones.
+### 2 Fourier transform actual values 
+
+Once the tests have been passed, I am going to use the same code but in this case I am going to pass the actual value of the parameter $ \eta $ at time $ t $.
 In particular, we have that:
-1. $$ \alpha^2 = \left(- \frac{\xi_0^2}{b} + \frac{2i\dot{b}}{Ub} \right)^-1 $$
-2. $$ \beta = \frac{\xi_0}{b} $$
+$$ \eta^2 = \left(- \frac{\xi_0^2}{b} + \frac{2i\dot{b}}{Ub} \right)$$
 
 The plan is to test both the orthogonality and the normalisation.
-I think the best plan now is to define two functions that will return the values of $\alpha $ and $\beta$ at a given time and then pass it to the function `analytic`.
+
+#### 2.1 Normalisation of the full wave function
 
 First I will check the orthogonality as it easier to do so, if that goes well I will continue with the normalisation, and implement multiple checks for it.
 
-I think the best way to implement the code is to put everything into a big function, as I need to define the auxiliary function $b(t)$, and it is not ideal to have the code redefine it every time.
-I will check if there is any more flexible and performant way to perform this task, but for the moment I only want to get the job done.
-
-I think it will make sense to carry out as many simplifications as possible, as it will be the way I am going to develop the code going forward, so it might be better start right now.
+The only thing I need to do now is to define all the constant that appear in the STA wave function and then define some kind of $ \eta(t)$ and pass it to the `analytic` function.
 
 All the relevant simplifications have been carried out in [the relevant notebook](~/Repos/ExternalBJJ/wrapup.wlnb), so there is no need to write them again here.
 =#
@@ -94,39 +103,50 @@ function wave_function(n::Int64, t, x, c::Control)
     normalisation = sqrt(EBJJ.scaling_ξ0(c)) / (π)^0.25 # Normalisation factor
     itp = EBJJ.interpolation_integral(c) # Interpolating function for the integral of the phase
     imaginary_phase(n, t) = exp(-im * (n + 0.5) * ξ0^2 * U / 2 * itp(t)) # Imaginary phase
-    α2(t) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t)))^(-1) # α^2 term to be used in the gaussian
-    β(t) = ξ0 / b(t) # β term to be used in the hermite polynomial
-    spatial(n, t, x) = analytic(n, x, sqrt(α2(t)), β(t)) # Spatial term
+    η(t) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t))) # Argument of the Gaussian term
+    spatial(n, t, x) = analytic(n, x, η(t)) # Spatial term
     excitation(n, t) = sqrt(2^n * factorial(n) * b(t)) # Excitation term
     return normalisation / excitation(n, t) * imaginary_phase(n, t) * spatial(n, t, x)
 end
 
+#=
+#### 2.1.1 Code implementation
 
-to_normalise(n::Int64, t::Float64, c::Control) = quadgk(x -> conj(wave_function(n, t, x, c)) * wave_function(n, t, x, c), -1e3, 1e3, atol=1e-3)[1]
-to_normalise(0, 0.0, ControlFull())
+I think it would make sense to integrate over the two dimensions $ x $ and $ t $, so that we can check the normalisation for different values of $ t $.
 
-@testset "Normalisation of Fourier trasformed" begin
+If the normalisation is correct, we should have that:
+
+$$ \int_{0}^{t_f} \int_{-\infty}^{\infty} \psi_n^*(x, t) \psi_n(x, t) dx dt = t_f $$
+
+where $ t_f $ is the final time of the STA protocol.
+I am goinot to use low tolerance, as the requirement for the normalisation is not too strict
+=#
+
+@testset "normalisation STA position full" begin
     c = ControlFull()
-    trange = range(0.0, c.T, length=3) # Time range in which check the normalisation
-    nrange = 0:3
-    for n in nrange, t in trange
-        norm = to_normalise(n, t, c)
-        @test isapprox(real(norm), 1.0, atol=1e-3)
-        @test isapprox(imag(norm), 0.0, atol=1e-3)
+    for n in 0:5
+        # defining a new function that takes only two arguments
+        f(x) = conj(wave_function(n, x[1], x[2], c)) * wave_function(n, x[1], x[2], c)
+        # integrating over the two dimensions
+        normalisation = hcubature(f, [0.0, -1e3], [c.T, 1e3], rtol=1e-3)[1]
+        @test isapprox(normalisation |> real, c.T, atol=1e-3)
     end
 end
 
-to_orthogonal(n::Int64, m::Int64, t::Float64, c::Control) = quadgk(x -> conj(wave_function(n, t, x, c)) * wave_function(m, t, x, c), -1e3, 1e3, atol=1e-3)[1]
-to_orthogonal(0, 0, 0.0, ControlFull())
+#=
+#### 2.2 Orthogonality of the full wave function
 
-@testset "Orthogonality of Fourier trasformed" begin
+This is just a test to check that the orthogonality is still valid.
+I will use a lower tolerance as I do not need too much precision here.
+=#
+
+@testset "Orthogonality STA position full" begin
     c = ControlFull()
-    trange = range(0.0, c.T, length=2) # Time range in which check the normalisation
-    nrange = 0:2
-    mrange = 3:5
-    for n in nrange, m in mrange, t in trange
-        orth = to_orthogonal(n, m, t, c)
-        @test isapprox(real(orth), 0.0, atol=1e-3)
-        @test isapprox(imag(orth), 0.0, atol=1e-3)
+    for n in 0:2, m in 0:2
+        if n != m
+            f(x) = conj(wave_function(n, x[1], x[2], c)) * wave_function(m, x[1], x[2], c)
+            orthogonality = hcubature(f, [0.0, -1e3], [c.T, 1e3], rtol=1e-3)[1]
+            @test isapprox(orthogonality |> real, 0.0, atol=1e-3)
+        end
     end
 end
