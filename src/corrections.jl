@@ -22,7 +22,6 @@ $$
     \tag{1}
 $$
 
-
 ### 2. $ K_n $
 
 To calculate this term, we need to evaluate the gradient with respect to the change in the control parameters.
@@ -49,10 +48,23 @@ Return the value of the integrand depending on the `bh` term evaluated at positi
 It needs a complex number η as input as it will be easier to pass that value later on as a function of time
 """
 function bh_integrand(n::Int64, z::Float64, h::Float64, η::ComplexF64)
-    return conj(EBJJ.spatial_fourier(n, z, η)) *   # Left part of the integrand
+    return conj(spatial_fourier(n, z, η)) *   # Left part of the integrand
            (
-        bh(z - h, h) * EBJJ.ground_state(z - h, η) +   #Second part of the right term of the integrand
-        bh(z, h) * EBJJ.ground_state(z + h, η)  #Second part of the right term of the integrand
+        bh(z - h, h) * ground_state(z - h, η) +   #Second part of the right term of the integrand
+        bh(z, h) * ground_state(z + h, η)  #Second part of the right term of the integrand
     )
 end
-
+"""
+    sd_integrand(n::Int64, z, η::ComplexF64)
+Return the value of the integrand ⟨ψₙ|d²/dz²|ψ₀⟩ at position `z` given the energy level `n`, it has already been simplified in order to speed up the calculation.
+It takes a general complex number η as an argument, as it is easier to pass it as an argument than to calculate it inside the function.
+This function needs to be used only for even value of `n`.
+"""
+function sd_integrand(n::Int64, z, η::ComplexF64)
+    rη = real(η)
+    γ = sqrt(conj(η) / η) # this is the √α²β² - 1 factor
+    num = sqrt(real(η)) / η # This is the numerator inside the Hermite polynomial
+    solution = SpecialPolynomials.basis(Hermite, n)(z * num / γ) * # Hermite polynomial
+               (rη * exp(-z^2 / (rη)) * (z^2 / rη - 1)) # Expoenential part
+    return solution
+end

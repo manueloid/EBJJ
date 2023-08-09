@@ -66,24 +66,7 @@ I do not think there is any need to split the integral into two addends.
 On the other hand though, I am not going to reuse any of the functions I used to calculate the part depending on the $ b_h $ factor, as there are more simplifications I can carry out in this section.
 
 I do not know if there is any need to implement the multiple dispatched versions of the functions, but I am going to leave them there just in case.
-=#
 
-"""
-    `sd_integrand(n::Int64, z, η::ComplexF64)`
-Return the value of the integrand ⟨ψₙ|d²/dz²|ψ₀⟩ at position `z` given the energy level `n`, it has already been simplified in order to speed up the calculation.
-It takes a general complex number η as an argument, as it is easier to pass it as an argument than to calculate it inside the function.
-This function needs to be used only for even value of `n`.
-"""
-function sd_integrand(n::Int64, z, η::ComplexF64)
-    rη = real(η)
-    γ = sqrt(conj(η) / η) # this is the √α²β² - 1 factor
-    num = sqrt(real(η)) / η # This is the numerator inside the Hermite polynomial
-    solution = SpecialPolynomials.basis(Hermite, n)(z * num / γ) * # Hermite polynomial
-               (rη * exp(-z^2 / (rη)) * (z^2 / rη - 1)) # Expoenential part
-    return solution
-end
-
-#=
 # Multiple dispatched version of the previous functions
 
 """
@@ -98,8 +81,6 @@ function bh_integrand(n::Int64, t, z, c::Control)
     η(t) = ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t))
     return bh_integrand(n, z, h, η(t))
 end
-
-
 """
     `sd_integrand(n::Int64, t, z, c::Control)`
 Evaluate the integrand of the Fourier transform of the STA wave function for a time `t` and at position `z` given the energy level `n`, for a control parameter `c`.
