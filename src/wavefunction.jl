@@ -20,7 +20,7 @@ Thus, we can simplify the term $ \alpha ^2 \beta ^2 -1 $ that appears twice in t
 """
     `spatial_fourier(n::Int64, t, z, η::ComplexF64)`
 Evaluate the analytic solution of the Fourier transform of the STA wave function for a complex number η, for a time `t` and at position `z`.
-The value η is nothing more than 1/α in the notes, while β is the real part of η.
+The value η is nothing more than 1/α² in the notes, while β is the real part of η.
 """
 function spatial_fourier(n::Int64, z, η::ComplexF64)
     γ = sqrt(conj(η) / η) # this is the √α²β² - 1 factor
@@ -40,23 +40,6 @@ where $ \psi_n(t,z) is the spatial part of the STA wave function.
 =#
 
 scaling_ξ0(c::Control) = sqrt(8c.J0 * c.N / c.U)
-bh(z::Float64, h::Float64) = abs(z) <= 1 ? √((1 + z + h) * (1 - z)) : 0.0 # One-line function that returns the piecewise function bₕ(z)
-"""
-    `bh_integrand(n::Int64, t, z, c::Control)`
-Evaluate the integrand of the Fourier transform of the STA wave function for a time `t` and at position `z` given the energy level `n`
-"""
-function bh_integrand(n::Int64, t, z, c::Control)
-    ξ0, U, h = scaling_ξ0(c), c.U, 1 / c.N # Definition of the constants
-    b(t) = auxiliary(t, c) # Auxiliary function
-    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    η(t) = ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t))
-    result = conj(spatial_fourier(n, z, η(t))) *   # Left part of the integrand
-             (
-        bh(z - h, h) * ground_state(z - h, η(t)) +   #Second part of the right term of the integrand
-        bh(z, h) * ground_state(z + h, η(t))  #Second part of the right term of the integrand
-    )
-    return result
-end
 
 #=
 ### 1.2 Integrand depending on the second derivative of the ground state
@@ -67,6 +50,68 @@ $$ \langle \psi_n | \frac{d^2}{dz^2} | \psi_0 \rangle $$.
 This integral is non zero if $ n $ is even.
 
 Moreover, I could analytically take the second derivative of the ground state, to get
+$$\alpha ^2 e^{-\frac{1}{2} \alpha ^2 x^2}\left( \alpha^2 x^2 - 1\right)$$
+
+we can thus obtain a single function to evaluate the integrand, which is given by
+    $$
+        \mathcal{H}_{n}^{*}\left(\frac{\alpha^{2}\betax}{\sqrt{2\alpha^{2}\beta^{2} - 1}}\right)
+       \alpha^2  \exp{- \frac{x^2}{2} \Re{\alpha^2}} \left( \alpha^2 x^2 - 1\right)
+    $$
+
+#### 1.2.1 Code implementation
+
+I am going to write a function that returns the value of this integrand given the time `t` and the position `z`.
+I do not think there is any need to split the integral into two addends.
+
+On the other hand though, I am not going to reuse any of the functions I used to calculate the part depending on the $ b_h $ factor, as there are more simplifications I can carry out in this section.
+
+I do not know if there is any need to implement the multiple dispatched versions of the functions, but I am going to leave them there just in case.
+=#
+
+"""
+    `sd_integrand(n::Int64, z, η::ComplexF64)`
+Return the value of the integrand ⟨ψₙ|d²/dz²|ψ₀⟩ at position `z` given the energy level `n`, it has already been simplified in order to speed up the calculation.
+It takes a general complex number η as an argument, as it is easier to pass it as an argument than to calculate it inside the function.
+This function needs to be used only for even value of `n`.
+"""
+function sd_integrand(n::Int64, z, η::ComplexF64)
+    rη = real(η)
+    γ = sqrt(conj(η) / η) # this is the √α²β² - 1 factor
+    num = sqrt(real(η)) / η # This is the numerator inside the Hermite polynomial
+    solution = SpecialPolynomials.basis(Hermite, n)(z * num / γ) * # Hermite polynomial
+               (rη * exp(-z^2 / (rη)) * (z^2 / rη - 1)) # Expoenential part
+    return solution
+end
+
+#=
+# Multiple dispatched version of the previous functions
+
+"""
+    `bh_integrand(n::Int64, t, z, c::Control)`
+Evaluate the integrand of the Fourier transform of the STA wave function for a time `t` and at position `z` given the energy level `n`
+This is the multiple dispatched version of the previous one.
+"""
+function bh_integrand(n::Int64, t, z, c::Control)
+    ξ0, U, h = scaling_ξ0(c), c.U, 1 / c.N # Definition of the constants
+    b(t) = auxiliary(t, c) # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
+    η(t) = ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t))
+    return bh_integrand(n, z, h, η(t))
+end
+
+
+"""
+    `sd_integrand(n::Int64, t, z, c::Control)`
+Evaluate the integrand of the Fourier transform of the STA wave function for a time `t` and at position `z` given the energy level `n`, for a control parameter `c`.
+This is the multiple dispatched version of the previous one.
+"""
+function sd_integrand(n::Int64, t, z, c::Control)
+    ξ0, U = scaling_ξ0(c), c.U # Definition of the constants
+    b(t) = auxiliary(t, c) # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
+    η(t) = ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t))
+    return sd_integrand(n, z, η(t))
+end
 =#
 
 #=
@@ -86,18 +131,13 @@ $$ (-i)^n|\alpha|^2 \left( \alpha^{*2}\beta^{2} -1\right)^{n/2}$$
 
 The first and the third one are easy to implement, the second one is a little bit harder as there is an implicit integral in the exponential.
 
-### 2.1 Normalisation factor
-The normalisation factor depends on the energy level $ n $ and it will be a function of time.
+I would like to try to implement the code in such a way that no allocations are made, for example I would like to not to define the auxiliary function.
+I could do that by either passing a value or a function as an argument.
+The second option is a little bit more trickier because at the moment I do not know how to pass a function.
+It seems like I only need to use the `::Function` type annotation, so I will keep on going with it.
 =#
-"""
-    `normalisation(n, t, c::Control)` 
-Returns the normalisation factor as a function of the energy level `n` and at the time `t`.
-"""
-function normalisation(n, t, c::Control)
-    ξ0, N = scaling_ξ0(c), c.N # Definition of the constants
-    b(t) = auxiliary(t, c) # Auxiliary function
-    return ξ0 * (pi * b(t)^2 * 2^n * factorial(n))^-0.5
-end
+
+normalisation(n::Int64, t, ξ0::Float64, b) = ξ0 * (pi * b(t)^2 * 2^n * factorial(n))^-0.5
 
 #=
 ### 2.2 Imaginary phase
@@ -106,24 +146,20 @@ To overcome this problem, I need to figure out what is the best way to implement
 I think my best take is to try to interpolate the integral function and then define a new one, instead of calling the `quadgk` function recursively.
 After some tests, I found that the interpolation with 1000 points is the best compromise between speed and accuracy.
 
-I will hence define the function `interpolation_integral(c::Control)` that returns a function that can be evaluated at any point in the interval [0, T].
-Then I will define the actual phase function `imaginary_phase(t, c::Control)` that will be used in the wave function.
+I will first define the general algorithm to return the integral function given the function to integrate and the time interval.
+I decided to have the function returning the interpolated function so that I do not have to interpolate it every time I need to evaluate it.
 =#
 
 """
-    `interpolation_integral(c::Control; npoints=1000)`
-This function interpolates the values of the integral of the phase function, and returns a function that can be evaluated at any point in the interval [0, T].
-This function takes a keyword argument `npoints` which is the number of points used to interpolate the integral, default value is 1000 which is a good compromise between speed and accuracy.
-It returns a function that can be evaluated at any point in the interval [0, T].
-This is only the integral of 1/b(t)^2, so it is not the phase function itself.
+    `interpolation_integral(tf::Float64, b::Function64; npoints=1000)`
+Return a function which is the interpolation of the function f(t) = ∫₀ᵗ b(τ) dτ in the interval [0, tf].
+The function takes the argument `npoints` which is the number of points used for the interpolation. The default value is 1000 as it is the best trade-off between speed and accuracy.
 """
-function interpolation_integral(c::Control; npoints=1000)
-    phase_integrand(t, c::Control) = 1 / auxiliary(t, c)^2
-    int(t) = quadgk(t -> phase_integrand(t, c), 0, t)[1]
-    trange = range(0.0, c.T, length=npoints)
-    integral_values = [int(t) for t in trange]
+function interpolation_integral(tf::Float64, b; npoints=1000)
+    trange = range(0.0, tf, length=npoints)
+    integral_values = [quadgk(t -> b(t), 0.0, t)[1] for t in trange]
     itp = linear_interpolation(trange, integral_values)
-    return t -> itp(t)
+    return t::Float64 -> itp(t)
 end
 """
     `imaginary_phase(n, t, c::Control; npoints=1000)`
@@ -133,94 +169,49 @@ The argument it takes are
 - `n` which is the level of excitation of the wave function
 - `t` which is the time at which the wave function is evaluated
 - `c` which is the control object, containing all the parameters of the system
-- `integral_func` which is the integral function that goes into the exponential, it could be either the interpolated function or the actual integral function.
-
+- `φ` which is the integral function that goes into the exponential, it could be either the interpolated function or the actual integral function.
 """
-function imaginary_phase(n, t, c::Control, integral_func::Function)
+function imaginary_phase(n, t, c::Control, φ)
     ξ0, U = scaling_ξ0(c), c.U # Definition of the constants
-    return exp(im * n * ξ0^2 * U / 2 * integral_func(t))
+    return exp(im * n * ξ0^2 * U / 2 * φ(t))
 end
 
 #=
 ### 2.3 Fourier transform factor
 This term comes from the Fourier transform of the product between a Gaussian function and a Hermite polynomial.
-It is a function of the time `t` and of the control object `c`, as well as of the energy level `n`.
-=#
+It is given by (using the $\alpha$ and $\beta$ notation from the notes)
+$$ (-i)^n|\alpha|^2 \left( \alpha^{*2}\beta^{2} -1\right)^{n/2}$$.
 
+But if we use the $ \eta $ notation, we can write it as 
+    $$ (-i)^n \Re{\eta^2} \left(\frac{\eta^{2}}{\eta^{2*}})^{n/2}$$.
+
+Where we would like to point out that we swapped the term in the fraction as we are considering the complex conjugate of the $\eta$ function.
+
+The function I am going to define will take a general complex number `η` as an argument, as it is easier to implement it this way.
+=#
 """
-    `fourier_factor(n, t, c::Control)`
-Return the Fourier transform factor as a function of the energy level `n`, the time `t` and the control object `c`.
+    fourier_factor(n, η::Complex)
+Return the Fourier transform factor as a function of the energy level `n` and a general complex number `η`.
 """
-function fourier_factor(n, t, c::Control)
-    αc(t), β(t) = conj(gaussian_arg(t, c)), hermite_arg(t, c) # Arguments of the Gaussian and Hermite functions
-    return (-im)^n * abs(αc(t))^2 * (αc(t)^2 * β(t)^2 - 1)^(n / 2)
-end
+fourier_factor(n::Int64, η::Complex) = (-im)^n * real(η) * (η / conj(η))^(n / 2)
 
 #=
 ## 2.4 Time dependent part 
 Here I will just implement the whole time dependent part of the wave function, just to make it a little bit easier to read.
+
+This function will be nothing more than a combination of the previous ones, in which I am going to pass the specific functions and the complex numbers.
+A possible implementation will be something like this:
 =#
 
 """
-    `time_dependent(n, t, c::Control)`
-Return the time dependent part of the STA wave function, as a function of the energy level `n` and the time `t`, for a given set of control parameter `c`.
-The keyword argument `npoints` is the number of points used to interpolate the integral in the imaginary phase function.
+    time_dependent(n::Int64, t, c::Control)
+Return the time dependent part of the product between the nth STA wave function and the ground state, as defined in the notes.
 """
-function time_dependent(n, t, c::Control, integral_func::Function)
-    return normalisation(n, t, c) * imaginary_phase(n, t, c, integral_func) * fourier_factor(n, t, c)
+function time_dependent(n::Int64, t, c::Control)
+    ξ0, U = scaling_ξ0(c), c.U # Definition of the constants
+    b(t) = auxiliary(t, c) # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
+    η(t) = ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t))
+    φ = interpolation_integral(t, b)
+    return normalisation(n, t, ξ0, b) * imaginary_phase(n, t, c, φ) * fourier_factor(n, η(t))
 end
-precompile(time_dependent, (Int64, Float64, ControlFull, Function))
-precompile(time_dependent, (Int64, Float64, ControlInt, Function))
-
-#=
-## 3. Spatial part of the wave function
-In this case, the spatial part of the wave function is given by the Hermite polynomial and the Gaussian term.
-The first one depends on the energy level `n`, time and space `t` and `z`, while the second one only depends on the time `t` and the space `z`.
-Let us call this function $f_n(t,z) = g(t, z) h_n(t, z)$, where $g(t, z)$ is the Gaussian term and $h_n(t, z)$ is the Hermite polynomial.
-These two functions are defined as:
-
-1. Gaussian term $ g(t,z) =	\exp\left\{-\frac{x^{2}\alpha^{2}}{2}\right\}$
-2. Hermite polynomial term $ h_n(t,z) = 
-$\mathcal{H}_{n}\left(\frac{\alpha^{2}\betax}{\sqrt{2\alpha^{2}\beta^{2} - 1}}\right)$
-
-What we need to is to implement a function that returns the complex conjugate of $f_n(t,z)$, as this is the term that appears in the integral, and also define a function that only returns $f_0(t,z)$ which - as we already saw - is nothing more than a Gaussian function.
-=#
-"""
-ground_state(t,z,c::Control)
-Return the ground state wave function as a function of time `t` and space `z`, for a given set of control parameters `c`.
-This function will be then reused to define the complex conjugate of the Gaussian term for the spatial factor of the general STA wave function.
-"""
-function ground_state(t, z, c::Control)
-    α(t) = gaussian_arg(t, c) # Argument of the Gaussian function
-    return exp(-z^2α(t)^2 / 2)
-end
-
-#=
-We can now implement the spatial part of the general STA wave function.
-We need to use the `ground_state` function defined above, as well as the `SpecialPolynomials` package to compute the Hermite polynomial.
-=#
-"""
-`hermite(n, t, z, c::Control)`
-Return the Fourier antitrasform of the Hermite polynomial of order `n`, as a function of time `t`, space `z` and control parameters `c`.
-The function `γ(t)` is the argument of the Fourier transform of the Hermite polynomial.
-"""
-function hermite(n, t, z, c::Control)
-    αc(t), β(t) = conj(gaussian_arg(t, c)), hermite_arg(t, c) # Arguments of the Gaussian and Hermite functions   
-    γ(t) = αc(t)^2 * β(t) / sqrt(2 * αc(t)^2 * β(t)^2 - 1) # Argument of the Hermite polynomial  
-    return SpecialPolynomials.basis(Hermite, n)(z * γ(t))
-end
-
-#=
-Now we only need to put the two together to obtain the spatial term of the STA wave function.
-=#
-"""
-`spatial(n, t, z, c::Control)`
-Return the spatial part of the STA wave function, as a function of the energy level `n`, time `t`, space `z` and control parameters `c`.
-This is already the complex conjugate, as it is the left term of the inner product.
-In simpler terms, this is the spatial term for ⟨χₙ| .
-"""
-function spatial(n, t, z, c::Control)
-    return conj(ground_state(t, z, c)) * hermite(n, t, z, c)
-end
-precompile(spatial, (Int64, Float64, Float64, ControlFull))
-precompile(spatial, (Int64, Float64, Float64, ControlInt))
