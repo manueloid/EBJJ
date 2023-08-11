@@ -38,4 +38,8 @@ export ground_state
 export time_dependent
 export spatial_fourier
 
+include("corrections.jl")
+export G_factor
+export K_factor
+
 end
