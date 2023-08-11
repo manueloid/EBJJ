@@ -39,21 +39,12 @@ end
 function auxiliary(t, c::Control)
     return auxiliary(t, c.T, c.J0, c.Jf) # return the value of the auxiliary function
 end
+auxiliary(c::Control) = t -> auxiliary(t, c) # auxiliary function at the final time
 """
-`control_function(t, tf::Float64,  J0::Float64, Jf::Float64; N::Int64=100, U::Float64=0.49)`
-Given the boundary conditions of the control function, the total time of the process and the number of particles and the interaction strength, it returns the value of the control function at time `t`.
+    control_function(auxiliary::Function, ddauxiliary::Function, c::Control)
+Given the auxiliary function and its second derivative, it returns the control function as an anonymous function.
 """
-function control_function(t, tf::Float64, J0::Float64, Jf::Float64, N::Int64=30, U::Float64=0.02)
-    σ = (J0 / Jf)^0.25 # calculate the value of σ, given the boundary conditions
-    b(t) = auxiliary(t, tf, σ) # define the auxiliary function
-    db(t) = ForwardDiff.derivative(b, t) # define the first derivative of the auxiliary function
-    ddb(t) = ForwardDiff.derivative(db, t) # define the second derivative of the auxiliary function
-    J(t) = J0 / b(t)^4 - ddb(t) / (2 * b(t) * U * N) # define the control function
-    return piecewise(t, tf, J) # return the value of the control function as a piecewise function
+function control_function(auxiliary::Function, ddauxiliary::Function, c::Control)
+    J(t::Float64) = c.J0 / auxiliary(t)^4 - ddauxiliary(t) / (2 * auxiliary(t) * c.U * c.N) # define the control function
+    return J # return the control function
 end
-"""
-`control_function(t, c::Control)`
-Given the control parameter `c` returns the value of the polynomials at time `t`.
-This is the multiple dispatch version of the previous function `control_function`.
-"""
-control_function(t, c::Control) = control_function(t, c.T, c.J0, c.Jf, c.N, c.U)
