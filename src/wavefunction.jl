@@ -129,6 +129,8 @@ After some tests, I found that the interpolation with 1000 points is the best co
 
 I will first define the general algorithm to return the integral function given the function to integrate and the time interval.
 I decided to have the function returning the interpolated function so that I do not have to interpolate it every time I need to evaluate it.
+
+Finally, I chose not to define the final imaginary phase function, I will define it later in the `time_dependent` function.
 =#
 
 """
@@ -181,8 +183,20 @@ fourier_factor(n::Int64, η::Complex) = (-im)^n * real(η) * (η / conj(η))^(n 
 Here I will just implement the whole time dependent part of the wave function, just to make it a little bit easier to read.
 
 This function will be nothing more than a combination of the previous ones, in which I am going to pass the specific functions and the complex numbers.
-A possible implementation will be something like this:
+If I did not have to specify the imaginary phase part, I could have just passed a complex number and the time at which I want the function to be evaluated.
+In this case though, I also need to pass the imaginary phase function as an argument.
 =#
+"""
+    time_dependent(n::Int64, t, η::Complex, φ::Function)
+Return the time dependent part of the product between the nth STA wave function and the ground state, as defined in the notes.
+The function takes the following arguments:
+- `n` which is the level of excitation of the wave function
+- `t` which is the time at which the function is evaluated
+- `η` which is the complex number that goes into the Fourier transform of the STA wave function
+- `φ` which is the integral function that goes into the exponential.
+"""
+function time_dependent(n::Int64, t, η::Complex, φ::Function)
+
 
 """
     time_dependent(n::Int64, t, c::Control)
