@@ -179,12 +179,17 @@ Return the Fourier transform factor as a function of the energy level `n` and a 
 fourier_factor(n::Int64, η::Complex) = (-im)^n * real(η) * (η / conj(η))^(n / 2)
 
 #=
-## 2.4 Time dependent part 
+### 2.4 Time dependent part 
 Here I will just implement the whole time dependent part of the wave function, just to make it a little bit easier to read.
 
 This function will be nothing more than a combination of the previous ones, in which I am going to pass the specific functions and the complex numbers.
 If I did not have to specify the imaginary phase part, I could have just passed a complex number and the time at which I want the function to be evaluated.
 In this case though, I also need to pass the imaginary phase function as an argument.
+
+I think the best way to implement this function is by passing two functions and a complex number as a argument, as well as a `Control` object.
+In this case the two functions will be the auxiliary function $ b(t) $ and the imaginary phase integral function that I am going to call $ \phi(t) $.
+
+By using this definitions, I can write the time dependent part of the wave function as
 =#
 """
     time_dependent(n::Int64, t, η::Complex, φ::Function)
