@@ -53,6 +53,7 @@ In the following code, I am going to define three functions:
 Moreover, in order to calculate the actual integral, I need to import use the functions defined in the `wavefunctions.jl` file, in particular I need the `time_dependent` function, which is goiong to be common to both $ G_n $ and $ K_n $.
 =#
 
+scaling_ξ0(c::Control) = sqrt(8c.J0 * c.N / c.U)
 bh(z::Float64, h::Float64) = abs(z) <= 1 ? √((1 + z + h) * (1 - z)) : 0.0 # One-liner function that returns the piecewise function bₕ(z)
 """
     bh_integrand(n::Int64, z, η::ComplexF64)

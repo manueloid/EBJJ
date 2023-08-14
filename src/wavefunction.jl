@@ -46,7 +46,7 @@ The value η is nothing more than 1/α² in the notes, while β is the real part
 function spatial_fourier(n::Int64, z::Float64, η::ComplexF64)
     γ = sqrt(conj(η) / η) # this is the √α²β² - 1 factor
     num = sqrt(real(η)) / η # This is the numerator inside the Hermite polynomial
-    return exp(-z^2 / (2 * η)) * SpecialPolynomials.basis(Hermite, n)(z * num / γ)
+    return exp(-z^2 / (2 * η)) * SpecialPolynomials.basis(Hermite, n)(z * num / γ) |> conj
 end
 
 # Multiple dispatch version of the previous function
@@ -93,7 +93,7 @@ Here I am going to only define the function that returns the value of the second
 The function will take only a complex number `η` and a position `z` as arguments, and it will return a complex number.
 
 =#
-sd_groundstate(z::Float64, η::ComplexF64) = (z^2 - η^2) * exp(-z^2 / (2 * η^2)) / η^4
+sd_groundstate(z::Float64, η::ComplexF64) = (z^2 - η) * exp(-z^2 / (2 * η)) / η^2
 sd_groundstate(η::ComplexF64, z::Float64) = sd_groundstate(z, η)
 
 #=
@@ -141,12 +141,12 @@ Again, the remember that
 =#
 
 # First part of the normalisation
-normalisation(reη::Float64) = sqrt(reη) / sqrt(pi) / reη^2
+normalisation(reη::Float64) = sqrt(reη) / (sqrt(pi) * reη)
 normalisation(η::ComplexF64) = normalisation(real(η))
 
 # Second part of the normalisation, the one with the excitation energy
-normalisation(n::Int64, γ::ComplexF64) = (-im)^n * (γ)^n / sqrt(2^n * factorial(n))
-normalisation(γ::ComplexF64, n::Int64) = normalisation(n, γ)
+normalisation(n::Int64, η::ComplexF64) = (-im)^n * sqrt(conj(η) / η)^n / sqrt(2^n * factorial(n))
+normalisation(η::ComplexF64, n::Int64) = normalisation(n, η)
 
 # Imaginary phase
 imaginary_phase(n::Int64, k::Float64) = exp(im * n * k)
@@ -154,6 +154,7 @@ imaginary_phase(k::Float64, n::Int64) = imaginary_phase(n, k)
 
 # Full function
 function time_dependent(n::Int64, η::ComplexF64, k::Float64)
+    η = conj(η)
     γ = sqrt(conj(η) / η)
     return normalisation(η) * normalisation(n, γ) * imaginary_phase(n, k)
 end
