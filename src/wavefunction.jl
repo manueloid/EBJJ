@@ -98,30 +98,60 @@ end
 #=
 ## 2. Exclusively time dependent part
 
-By what I have already described in a different file, we can simplify the product of the time dependent parts of the STA functions.
-This simplification can be described as a product of three factors:
+By what I have already described in a [different file](~/Repos/ExternalBJJ/Documents/Formulae/latex_build/formulae.pdf), we can simplify the product of the time dependent parts of the STA functions.
+This is
 
-1. the normalisation factor, which is the same as the one for the Harmonic Oscillator 
-$$ \xi_0 \left( \pi b^2(t) 2^n n! \right)^{-1/2}$$
+$$
+    \sqrt{\frac{\Re[\eta^2]}{\pi}} % normalisation not depending on the excitation
+	\frac{-i^n \gamma^{n}}{\sqrt{2^{n}n!}} % normalisation term depending on the excitation
+	\exp\left\{i n \int_{0}^{t} \frac{\xi_{0}^{2} U }{2 b(\tau)^{2}} d\tau \right\} % imaginary time evolution factor
+    tag{1}
+$$ 
 
-2. the imaginary phase, given by 
-$$\exp^\left\{i n \int_0^t \frac{\xi_0^2 U}{2 b(\tau )^2} \, d\tau \right\}$$
+where we have
+$$
+	\eta^2 = \frac{\xi_0^2}{b(t)^2}-\frac{2 i b'(t)}{U b(t)}
+    \tag{2}
+$$
 
-3. The factor coming from the Fourier transform 
-$$ (-i)^n|\alpha|^2 \left( \alpha^{*2}\beta^{2} -1\right)^{n/2}$$
+and $ \gamma $ is $\frac{\eta^{2*}}{\eta^{2}}$.
 
-The first and the third one are easy to implement, the second one is a little bit harder as there is an implicit integral in the exponential.
+### 2.1 Code implementation
 
-I would like to try to implement the code in such a way that no allocations are made, for example I would like to not to define the auxiliary function.
-I could do that by either passing a value or a function as an argument.
-The second option is a little bit more trickier because at the moment I do not know how to pass a function.
-It seems like I only need to use the `::Function` type annotation, so I will keep on going with it.
+I found out that in a very high level implementation of the code, I can define both the time dependent part of the product of the wave function by passing just three arguments:
+1. the energy level `n`
+2. a complex number `η`
+3. a real number `k`
+
+The real number `k` is the value of the integral function at the time `t`, and it is used to evaluate the imaginary phase.
+To be verbose, the value of `k` is given by (at time `t`)
+$$ \int_0^t \frac{\xi_0^2 U}{2 b(\tau )^2} \, d\tau $$
+
+While the value of `η` is given by (at time `t` as well )
+$$ \frac{\xi_0^2}{b(t)^2} - \frac{2i}{U} \frac{db(t)}{b(t)} $$
+
+From equation 1, we can see that the normalisation factor can be split into two parts, one where the excitation energy is taken into account, and one where it is not.
+I can thus use the multiple dispatch where I can pass only one argument, and one where I can pass both the energy level and the complex numbers.
+
+I need to remember that the name of the variable `\eta` can be a little misleading, as it actually not the complex number $\eta$ but its square.
+Moreover, I will define the second normalisation function as taking `γ` as an argument, as it makes the code more readable.
+
 =#
 
-normalisation(n::Int64, t, ξ0::Float64, b) = ξ0 * (pi * b(t)^2 * 2^n * factorial(n))^-0.5
+# First part of the normalisation
+normalisation(reη::Float64) = sqrt(reη) / sqrt(pi)
+normalisation(η::ComplexF64) = normalisation(real(η))
+
+# Second part of the normalisation, the one with the excitation energy
+normalisation(n::Int64, γ::ComplexF64) = (-im)^n * (γ)^n / sqrt(2^n * factorial(n))
+normalisation(γ::ComplexF64, n::Int64) = normalisation(n, γ)
+
+# Imaginary phase
+imaginary_phase(n::Int64, k::Float64) = exp(im * n * k)
+imaginary_phase(k::Float64, n::Int64) = imaginary_phase(n, k)
 
 #=
-### 2.2 Imaginary phase
+#### 2.1.1 Imaginary phase
 As said earlier, this function is quite tricky from a numerical point of view, as the implicit integral is not easy to evaluate.
 To overcome this problem, I need to figure out what is the best way to implement the integral.
 I think my best take is to try to interpolate the integral function and then define a new one, instead of calling the `quadgk` function recursively.
@@ -142,76 +172,5 @@ function interpolation_integral(tf::Float64, b; npoints=1000)
     trange = range(0.0, tf, length=npoints)
     integral_values = [quadgk(t -> b(t), 0.0, t)[1] for t in trange]
     itp = linear_interpolation(trange, integral_values)
-    return t::Float64 -> itp(t)
-end
-"""
-    `imaginary_phase(n, t, c::Control; npoints=1000)`
-This function returns the imaginary phase of the product of the nth STA wave function and the ground state, as defined in the notes.
-
-The argument it takes are 
-- `n` which is the level of excitation of the wave function
-- `t` which is the time at which the wave function is evaluated
-- `c` which is the control object, containing all the parameters of the system
-- `φ` which is the integral function that goes into the exponential, it could be either the interpolated function or the actual integral function.
-"""
-function imaginary_phase(n, t, c::Control, φ)
-    ξ0, U = scaling_ξ0(c), c.U # Definition of the constants
-    return exp(im * n * ξ0^2 * U / 2 * φ(t))
-end
-
-#=
-### 2.3 Fourier transform factor
-This term comes from the Fourier transform of the product between a Gaussian function and a Hermite polynomial.
-It is given by (using the $\alpha$ and $\beta$ notation from the notes)
-$$ (-i)^n|\alpha|^2 \left( \alpha^{*2}\beta^{2} -1\right)^{n/2}$$.
-
-But if we use the $ \eta $ notation, we can write it as 
-    $$ (-i)^n \Re{\eta^2} \left(\frac{\eta^{2}}{\eta^{2*}})^{n/2}$$.
-
-Where we would like to point out that we swapped the term in the fraction as we are considering the complex conjugate of the $\eta$ function.
-
-The function I am going to define will take a general complex number `η` as an argument, as it is easier to implement it this way.
-=#
-"""
-    fourier_factor(n, η::Complex)
-Return the Fourier transform factor as a function of the energy level `n` and a general complex number `η`.
-"""
-fourier_factor(n::Int64, η::Complex) = (-im)^n * real(η) * (η / conj(η))^(n / 2)
-
-#=
-### 2.4 Time dependent part 
-Here I will just implement the whole time dependent part of the wave function, just to make it a little bit easier to read.
-
-This function will be nothing more than a combination of the previous ones, in which I am going to pass the specific functions and the complex numbers.
-If I did not have to specify the imaginary phase part, I could have just passed a complex number and the time at which I want the function to be evaluated.
-In this case though, I also need to pass the imaginary phase function as an argument.
-
-I think the best way to implement this function is by passing two functions and a complex number as a argument, as well as a `Control` object.
-In this case the two functions will be the auxiliary function $ b(t) $ and the imaginary phase integral function that I am going to call $ \phi(t) $.
-
-By using this definitions, I can write the time dependent part of the wave function as
-=#
-"""
-    time_dependent(n::Int64, t, η::Complex, φ::Function)
-Return the time dependent part of the product between the nth STA wave function and the ground state, as defined in the notes.
-The function takes the following arguments:
-- `n` which is the level of excitation of the wave function
-- `t` which is the time at which the function is evaluated
-- `η` which is the complex number that goes into the Fourier transform of the STA wave function
-- `φ` which is the integral function that goes into the exponential.
-"""
-function time_dependent(n::Int64, t, η::Complex, φ::Function)
-
-
-"""
-    time_dependent(n::Int64, t, c::Control)
-Return the time dependent part of the product between the nth STA wave function and the ground state, as defined in the notes.
-"""
-function time_dependent(n::Int64, t, c::Control)
-    ξ0, U = scaling_ξ0(c), c.U # Definition of the constants
-    b(t) = auxiliary(t, c) # Auxiliary function
-    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    η(t) = ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t))
-    φ = interpolation_integral(t, b)
-    return normalisation(n, t, ξ0, b) * imaginary_phase(n, t, c, φ) * fourier_factor(n, η(t))
+    return itp
 end
