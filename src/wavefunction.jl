@@ -58,7 +58,6 @@ spatial_fourier(z::Float64, n::Int64, η::ComplexF64) = spatial_fourier(n, z, η
 
 # Ground state of the STA wave function multiply dispatched
 ground_state(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
-ground_state(z::Float64, η::ComplexF64) = spatial_fourier(0, z, η)
 ground_state(η::ComplexF64, z::Float64) = ground_state(z, η)
 
 #=
