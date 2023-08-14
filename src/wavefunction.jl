@@ -189,3 +189,11 @@ function interpolation_integral(tf::Float64, b; npoints=1000)
     itp = linear_interpolation(trange, integral_values)
     return itp
 end
+interpolation_integral(c::Control, b; npoints=1000) = interpolation_integral(c.T, b, npoints=npoints)
+function interpolation_integral(c::Control; npoints=1000)
+    ξ0, U = EBJJ.scaling_ξ0(c), c.U
+    b(t::Float64) = auxiliary(t, c)
+    to_int(t::Float64) = ξ0^2 * U / b(t)^2
+    return interpolation_integral(c, to_int; npoints=npoints)
+end
+

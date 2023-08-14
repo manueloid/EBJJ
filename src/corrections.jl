@@ -67,20 +67,6 @@ function bh_integrand(n::Int64, z::Float64, h::Float64, η::ComplexF64)
     )
 end
 """
-    sd_integrand(n::Int64, z, η::ComplexF64)
-Return the value of the integrand ⟨ψₙ|d²/dz²|ψ₀⟩ at position `z` given the energy level `n`, it has already been simplified in order to speed up the calculation.
-It takes a general complex number η as an argument, as it is easier to pass it as an argument than to calculate it inside the function.
-This function needs to be used only for even value of `n`.
-"""
-function sd_integrand(n::Int64, z, η::ComplexF64)
-    rη = real(η)
-    γ = sqrt(conj(η) / η) # this is the √α²β² - 1 factor
-    num = sqrt(real(η)) / η # This is the numerator inside the Hermite polynomial
-    solution = SpecialPolynomials.basis(Hermite, n)(z * num / γ) * # Hermite polynomial
-               (rη * exp(-z^2 / (rη)) * (z^2 / rη - 1)) # Expoenential part
-    return solution
-end
-"""
     gradient(tarray::Array{Float64, 1})
 Calculate the gradient of the control function, given an array of points in the interval  `[0, tf]`.
 The output is an array of anonymous functions, where each function is the  i -th term of the gradient.

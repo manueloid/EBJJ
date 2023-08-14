@@ -7,7 +7,9 @@ using HCubature
 using EBJJ
 
 #=
-# Orthogonality and normalisation of the general form
+# Orthogonality and normalisation checks
+
+## 1 Orthogonality test for the general functions
 
 in this document I will check what is the behaviour of the functions defined in [this file](./src/wavefunction.jl).
 
@@ -50,10 +52,48 @@ end
 end
 
 #=
-## Orthogonality test for the actual system
+## 2 Orthogonality test for the actual system
 
 Here I am going to pass the actual values of the system to the functions and check the orthogonality of the ground state with respect to the excited states.
 By defining this function I will be able to make a blueprint for the actual integrals that I will have to evaluate in the future.
 
 I will integrate also all over the time interval, the plan is to check that the normalisation of the ground state over the time interval is equal to the width of the time interval itself.
+
+### 2.1 Code implementation
+
+In this case I will define a function that will take the control parameter and the excitation number as the input and it will internally calculate all the relevant features.
+The main features the function needs to calculate intenally are the following:
+- The auxiliary function $b(t)$ and its derivative with respect to time
+- The function which interpolates the integral function that goes into the time dependent phase of the wave function
+- The function $ \eta (t) $ which is the argument of the Gaussian term of the STA wave function in momentum space
+
+As I said, I can define everything inside the function call and then integrate numerically.
+Actually, it would make sense to define a function that returns all the relevant features and then pass them to the integrand function.
+I will call it `tdip_param` as in time dependent parameters.
 =#
+function tdip_param(c)
+    ξ0, U = EBJJ.scaling_ξ0(c), c.U # constants
+    b(t) = auxiliary(t, c)
+    db(t) = ForwardDiff.derivative(b, t)
+    to_int(t::Float64) = ξ0^2 * U / (2 * b(t)^2)
+    itp = EBJJ.interpolation_integral(c, to_int)
+    η(t::Float64) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t)))
+    return η, itp
+end
+
+function orthogonality_check(n::Int64, c::Control)
+    η, itp = tdip_param(c)
+    f(t::Float64, z::Float64) = time_dependent(n, η(t), itp(t)) * spatial_fourier(n, η(t), z) * ground_state(η(t), z)
+    return hcubature(f, [0.0, -1.0e2], [c.T, 1.0e2], rtol=1e-3)[1]
+end
+
+@testset "orthogonality checks with system parameter" begin
+    c = ControlFull()
+    for n in 0:5
+        if n == 0
+            @test isapprox(orthogonality_check(n, c), 1.0 + 0.0, atol=1e-3)
+        else
+            @test isapprox(orthogonality_check(n, c), 0.0 + 0.0, atol=1e-3)
+        end
+    end
+end
