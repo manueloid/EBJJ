@@ -100,30 +100,15 @@ I thing eventually I will implement everything in one big function, but for now 
 #### 4.1. $ G_n $
 
 To calculate the $ G_n $, I only need to calculate the integral I defined earlier and do that for different values of $n$.
+
+I would like to define a general function that takes many arguments as parameter.
+I know it is not the best way to do that, but it will help me reducing the allocation in the long term.
 =#
 
-"""
-    G_factor(n::Int64, c::Control)
-Return the value of the integral `Gₙ` given the energy level `n` and the control parameter `c`.
-"""
-function G_factor(n::Int64, c::Control)
-    # Setting up the time dependent functions
-    b(t) = auxiliary(t, c)
-    db(t) = ForwardDiff.derivative(b, t)
-    ddb(t) = ForwardDiff.derivative(db, t)
-    J = control_function(b, ddb, c)
-    ξ0, U, h = EBJJ.scaling_ξ0(c), c.U, 1.0 / c.N # constants
-    k(t::Float64) = EBJJ.interpolation_integral(c)(t)
-    η(t::Float64) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t)))
-    # Setting up the integrand
-    f(v) = time_dependent(n, η(v[1]), k(v[1])) *    # time dependent part
-           spatial_fourier(n, η(v[1]), v[2]) *         # spatial part, of energy level n
-           J(v[1]) * (                                 # control function 
-               bh_integrand(v[2], h, η(v[1])) +  # part depending on the bh function
-               sd_groundstate(v[2], η(v[1]))           # part depending on the second derivative of the ground state 
-           )
-    result = hcubature(f, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)
-    return result[1]
+function G_factor(n::Int64, z::Float64, η::ComplexF64, k::Float64, h::Float64)
+    return time_dependent(n, η, k) *             # time dependent part
+           spatial_fourier(n, η, z) *           # spatial part, of energy level n
+           (bh_integrand(z, h, η) - sd_groundstate(z, η))
 end
 
 #=
@@ -132,28 +117,14 @@ end
 The code to calculate the $ K_n $ is very similar to the one used to calculate the $ G_n $, the only big difference is that I have to repeat the calculation for the different terms of the gradient.
 
 The nice part is that I do not have to use the function depending on the second derivative.
+
+Similarly to what I have done with the $ G_n $ term, I will define a function that takes a lot of arguments.
 =#
-"""
-    K_factor(n::Int64, c::Control; λs::Int64=5)
-Return the value of the integral `Kₙ` given the energy level `n` and the control parameter `c`, for a number of corrections equal to `λs`.
-"""
-function K_factor(n::Int64, c::Control; λs::Int64=5)
-    b(t) = auxiliary(t, c)
-    db(t) = ForwardDiff.derivative(b, t)
-    ξ0, U, h = EBJJ.scaling_ξ0(c), c.U, 1.0 / c.N # constants
-    k(t::Float64) = EBJJ.interpolation_integral(c)(t)
-    η(t::Float64) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t)))
-    # Part where I define the gradient function
-    gradient_functions = gradient(collect(0.0:c.T/(λs+1):c.T))
-    grad(t::Float64) = [g(t) for g in gradient_functions]
-    f(v) = time_dependent(n, η(v[1]), k(v[1])) *    # time dependent part
-           spatial_fourier(n, η(v[1]), v[2]) *         # spatial part, of energy level n
-           (                                 # control function 
-               bh_integrand(v[2], h, η(v[1]))  # part depending on the bh function
-           ) *
-           grad(v[1])
-    result = hcubature(f, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)
-    return result[1]
+
+function K_factor(n::Int64, z::Float64, η::ComplexF64, k::Float64, h::Float64)
+    return time_dependent(n, η, k) *             # time dependent part
+           spatial_fourier(n, η, z) *           # spatial part, of energy level n
+           (bh_integrand(z, h, η))
 end
 
 #=
@@ -182,12 +153,20 @@ In both cases, the value $ \mathcal{N} $ is the number of energy levels we are c
 
 I think it would make more sense to define all the relevant parameters in one big function, and only then evaluate the values for $ G_n $ and $ K_n $, to then finally evaluate the corrections.
 =#
+function corrections(k::Vector{ComplexF64}, g::ComplexF64)
+    H = k * k' # Hessian matrix 
+    v = g' * k |> real # Fidelity vector
+    num = norm(v)^3 * v
+    den = v' * H * v
+    return num / den |> real
+end
+corrections(g::ComplexF64, k::Vector{ComplexF64}) = corrections(k, g)
 """
     corrections(n::Int64, c::Control; λs::Int64=5)
 Return a tuple of the form '(Kₙ, Gₙ)', given the energy level `n` and the control parameter `c`.
 Everything is defined in place as it is easier to implement.
 """
-function corrections(n::Int64, c::Control; λs::Int64=5)
+function corrections(ns::Vector{Int64}, c::Control; λs::Int64=5)
     b(t) = auxiliary(t, c)
     db(t) = ForwardDiff.derivative(b, t)
     ddb(t) = ForwardDiff.derivative(db, t)
@@ -197,35 +176,16 @@ function corrections(n::Int64, c::Control; λs::Int64=5)
     η(t::Float64) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t)))
     gradient_functions = gradient(collect(0.0:c.T/(λs+1):c.T))
     grad(t::Float64) = [g(t) for g in gradient_functions]
-    # Function to evaluate the Kns
-    k(v) = time_dependent(n, η(v[1]), k(v[1])) *    # time dependent part
-           spatial_fourier(n, η(v[1]), v[2]) *         # spatial part, of energy level n
-           (                                 # control function 
-               bh_integrand(v[2], h, η(v[1]))  # part depending on the bh function
-           ) *
-           grad(v[1])
-    # Function to evaluate the Gns
-    g(v) = time_dependent(n, η(v[1]), k(v[1])) *    # time dependent part
-           spatial_fourier(n, η(v[1]), v[2]) *         # spatial part, of energy level n
-           J(v[1]) * (                                 # control function 
-               bh_integrand(v[2], h, η(v[1])) +  # part depending on the bh function
-               sd_groundstate(v[2], η(v[1]))           # part depending on the second derivative of the ground state 
-           )
-    Kn = hcubature(k, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
-    Gn = hcubature(g, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
-    return Kn, Gn
+    corr = zeros(Float64, λs)
+    for i in 1:length(ns)
+        global num = ns[i]
+        # Function to evaluate the Kns
+        k(v) = K_factor(num, v[2], η(v[1]), k(v[1]), h) * grad(v[1])
+        # Function to evaluate the Gns
+        g(v) = G_factor(num, v[2], η(v[1]), k(v[1]), h) * J(v[1])
+        Kn::Vector{ComplexF64} = hcubature(k, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
+        Gn::ComplexF64 = hcubature(g, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
+        corr += corrections(Kn, Gn)
+    end
+    return corr
 end
-
-c = ControlFull()
-k, g = corrections(6, c)
-corrections(k, g)
-
-function corrections(k::Vector{ComplexF64}, g::ComplexF64)
-    H = k * k' # Hessian matrix 
-    v = g' * k |> real # Fidelity vector
-    num = norm(v)^3 * v
-    den = v' * H * v
-    return num / den |> real
-end
-corrections(g::ComplexF64, k::Vector{ComplexF64}) = corrections(k, g)
-
