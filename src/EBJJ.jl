@@ -23,6 +23,8 @@ using ForwardDiff
 using QuadGK
 using Interpolations
 using SpecialPolynomials
+using HCubature
+using LinearAlgebra
 
 include("base.jl")
 export Control
@@ -41,5 +43,6 @@ export spatial_fourier
 include("corrections.jl")
 export G_factor
 export K_factor
+export corrections
 
 end
