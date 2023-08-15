@@ -30,37 +30,6 @@ This is what I will do next.
 
 I will compose all the functions that I need and then integrate them numerically.
 =#
-
-function orthogonality_check(n::Int64, η::ComplexF64, k::Float64)
-    f(z::Float64) =
-        time_dependent(n, η, k) * # this is the composition of the two time dependent parts of the product of the wave functions
-        spatial_fourier(n, η, z) * # this is the left hand side of the integral
-        ground_state(η, z) # this is the right hand side of the integral
-    return quadgk(f, -1.0e3, 1.0e3, atol=1e-9)[1]
-end
-
-@testset "Testing ground state" begin
-    zrange = range(-0.1, 0.1, length=1000)
-    η = rand(ComplexF64)
-    totest = [spatial_fourier(0, η, z) |> conj for z in zrange]
-    reference = [ground_state(η, z) for z in zrange]
-    @test isapprox(totest, reference, atol=1e-3)
-end
-
-@testset "orthogonality check for the general correction functions" begin
-    # η = rand(ComplexF64)
-    # k = rand(Float64)
-    η = 1.0 + 0.5im
-    k = 1.0
-    for n in 0:5
-        if n == 0
-            @test isapprox(orthogonality_check(n, η, k), 1.0 + 0.0, atol=1e-3)
-        else
-            @test isapprox(orthogonality_check(n, η, k), 0.0 + 0.0, atol=1e-3)
-        end
-    end
-end
-
 #=
 ## 2 Orthogonality test for the actual system
 
@@ -82,29 +51,49 @@ Actually, it would make sense to define a function that returns all the relevant
 I will call it `tdip_param` as in time dependent parameters.
 =#
 
-function tdip_param(c::Control)
-    ξ0, U = EBJJ.scaling_ξ0(c), c.U # constants
+"""
+    td_norm_test(c::Control, n::Int64)
+Test the normalisation of the ground state for different times, given the control parameters and the number of points in the time interval.
+"""
+function td_norm_test(c::Control, n::Int64)
+    trange = range(0.0, c.T, length=n)
     b(t) = auxiliary(t, c)
     db(t) = ForwardDiff.derivative(b, t)
-    itp = EBJJ.interpolation_integral(c)
-    itpf = t::Float64 -> itp(t)
+    ξ0, U = EBJJ.scaling_ξ0(c), c.U # constants
+    k(t::Float64) = EBJJ.interpolation_integral(c)(t)
     η(t::Float64) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t)))
-    return η, itpf
+    f(z::Float64, t::Float64) = spatial_fourier(0, z, η(t)) * time_dependent(0, η(t), k(t)) * ground_state(z, η(t))
+    return [quadgk(z -> f(z, t), -Inf, Inf, atol=1e-4)[1] for t in trange]
 end
-
-function orthogonality_check(n::Int64, c::Control)
-    η, itp = tdip_param(c)
-    f(var) = time_dependent(n, conj(η(var[1])), itp(var[1])) * spatial_fourier(n, conj(η(var[1])), var[2]) * ground_state(η(var[1]), var[2])
-    return hcubature(f, [0.0, -2.0e2], [c.T, 2.0e2], rtol=1e-3)[1]
-end
-
-@testset "orthogonality checks with system parameter" begin
+@testset "Testing normalisation for general `t`" begin
     c = ControlFull()
-    for n in 0:0
-        if n == 0
-            @test isapprox(orthogonality_check(n, c), c.T + 0.0, atol=1e-3)
-        else
-            @test isapprox(orthogonality_check(n, c), 0.0 + 0.0, atol=1e-3)
-        end
+    n = 10
+    result = td_norm_test(c, n)
+    @test isapprox(result, ones(n), atol=1e-3)
+end
+"""
+    td_norm_test(c::Control)
+Test the normalisation of the ground state by integrating the two dimensional integral over the time variable as well as the position variable.
+The plan is to check if the result is equal to the width of the time interval.
+"""
+function td_norm_test(c::Control)
+    # trange = range(0.0, c.T, length=n)
+    b(t) = auxiliary(t, c)
+    db(t) = ForwardDiff.derivative(b, t)
+    ξ0, U = EBJJ.scaling_ξ0(c), c.U # constants
+    k(t::Float64) = EBJJ.interpolation_integral(c)(t)
+    η(t::Float64) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t)))
+    f(v) = spatial_fourier(0, v[2], η(v[1])) * time_dependent(0, η(v[1]), k(v[1])) * ground_state(v[2], η(v[1]))
+    result::ComplexF64, err::Float64 = hcubature(f, [0.0, -1.e3], [c.T, 1.e3], atol=1e-6)
+    return result
+end
+@testset "Integrating all over the time interval" begin
+    nparticles = 10:30:50
+    tfs = 0.1pi:0.1pi:0.5pi
+    for np in nparticles, tf in tfs
+        c = ControlFull(np, tf)
+        result = td_norm_test(c)
+        @test isapprox(result, c.T, atol=1e-3)
     end
 end
+

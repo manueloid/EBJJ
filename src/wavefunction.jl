@@ -137,12 +137,10 @@ I can thus use the multiple dispatch where I can pass only one argument, and one
 I need to remember that the name of the variable `\eta` can be a little misleading, as it actually not the complex number $\eta$ but its square.
 Moreover, I will define the second normalisation function as taking `γ` as an argument, as it makes the code more readable.
 
-Again, the remember that 
 =#
 
 # First part of the normalisation
-normalisation(reη::Float64) = sqrt(reη) / (sqrt(pi) * reη)
-normalisation(η::ComplexF64) = normalisation(real(η))
+normalisation(η::ComplexF64) = sqrt(real(η) / pi) / abs(η)
 
 # Second part of the normalisation, the one with the excitation energy
 normalisation(n::Int64, η::ComplexF64) = (-im)^n * sqrt(conj(η) / η)^n / sqrt(2^n * factorial(n))
@@ -184,17 +182,16 @@ Finally, I chose not to define the final imaginary phase function, I will define
 Return a function which is the interpolation of the function f(t) = ∫₀ᵗ b(τ) dτ in the interval [0, tf].
 The function takes the argument `npoints` which is the number of points used for the interpolation. The default value is 1000 as it is the best trade-off between speed and accuracy.
 """
-function interpolation_integral(tf::Float64, b; npoints=1000)
+function interpolation_integral(tf::Float64, b; npoints=100)
     trange = range(0.0, tf, length=npoints)
     integral_values = [quadgk(t -> b(t), 0.0, t)[1] for t in trange]
     itp = linear_interpolation(trange, integral_values)
     return itp
 end
-interpolation_integral(c::Control, b; npoints=1000) = interpolation_integral(c.T, b, npoints=npoints)
-function interpolation_integral(c::Control; npoints=1000)
+interpolation_integral(c::Control, b; npoints=100) = interpolation_integral(c.T, b, npoints=npoints)
+function interpolation_integral(c::Control; npoints=100)
     ξ0, U = EBJJ.scaling_ξ0(c), c.U
     b(t::Float64) = auxiliary(t, c)
     to_int(t::Float64) = ξ0^2 * U / b(t)^2
     return interpolation_integral(c, to_int; npoints=npoints)
 end
-
