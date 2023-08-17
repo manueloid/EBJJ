@@ -64,8 +64,8 @@ From the paper, the constant values are:
 I will use multiple dispatch in such a way that the order of the parameters does not matter.
 =#
 
-ControlFull() = ControlFull(30, 0.05 * pi, 0.1, 0.05, 0.02)
-ControlInt() = ControlInt(30, 0.05 * pi, 0.1, 0.05, 0.02)
+ControlFull() = ControlFull(30, 0.1, 0.05, 0.02, 0.05 * pi)
+ControlInt() = ControlInt(30, 0.1, 0.05, 0.02, 0.05 * pi)
 ControlFull(N::Int64, T::Float64) = ControlFull(N, 0.1, 0.05, 0.02, T)
 ControlFull(T::Float64, N::Int64) = ControlFull(N, 0.1, 0.05, 0.02, T)
 ControlInt(N::Int64, T::Float64) = ControlInt(N, 0.1, 0.05, 0.02, T)
