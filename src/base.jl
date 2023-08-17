@@ -25,10 +25,10 @@ Derived type of ControlParameter for the full Hamiltonian
 """
 struct ControlFull <: Control
     N::Int64
-    T::Float64
     J0::Float64
     Jf::Float64
     U::Float64
+    T::Float64
 end
 
 """
@@ -66,7 +66,7 @@ I will use multiple dispatch in such a way that the order of the parameters does
 
 ControlFull() = ControlFull(30, 0.05 * pi, 0.1, 0.05, 0.02)
 ControlInt() = ControlInt(30, 0.05 * pi, 0.1, 0.05, 0.02)
-ControlFull(N::Int64, T::Float64) = ControlFull(N, T, 0.1, 0.05, 0.02)
-ControlFull(T::Float64, N::Int64) = ControlFull(N, T, 0.1, 0.05, 0.02)
-ControlInt(N::Int64, T::Float64) = ControlInt(N, T, 0.1, 0.05, 0.02)
-ControlInt(T::Float64, N::Int64) = ControlInt(N, T, 0.1, 0.05, 0.02)
+ControlFull(N::Int64, T::Float64) = ControlFull(N, 0.1, 0.05, 0.02, T)
+ControlFull(T::Float64, N::Int64) = ControlFull(N, 0.1, 0.05, 0.02, T)
+ControlInt(N::Int64, T::Float64) = ControlInt(N, 0.1, 0.05, 0.02, T)
+ControlInt(T::Float64, N::Int64) = ControlInt(N, 0.1, 0.05, 0.02, T)
