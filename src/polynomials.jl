@@ -48,3 +48,9 @@ function control_function(auxiliary::Function, ddauxiliary::Function, c::Control
     J(t::Float64) = c.J0 / auxiliary(t)^4 - ddauxiliary(t) / (2 * auxiliary(t) * c.U * c.N) # define the control function
     return J # return the control function
 end
+function control_function(c::Control)
+    b(t) = auxiliary(t, c)
+    db(t) = ForwardDiff.derivative(b, t)
+    ddb(t) = ForwardDiff.derivative(db, t)
+    return control_function(b, ddb, c)
+end
