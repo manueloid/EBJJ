@@ -54,3 +54,13 @@ function control_function(c::Control)
     ddb(t) = ForwardDiff.derivative(db, t)
     return control_function(b, ddb, c)
 end
+"""
+    correction_poly(tf::Float64, correction_vector::Array{Float64,1})
+Return a function that is going to be used to correct the control function, given the whole time of the process and the vector of the corrections.
+"""
+function correction_poly(tf::Float64, correction_vector::Array{Float64,1})
+    ys = [0.0; correction_vector; 0.0] # faster than vcat([]...)
+    xs = range(0.0, tf, length=length(ys)) |> collect
+    f(t::Float64) = Lagrange(xs, ys)(t)
+    return t -> piecewise(t, tf, f)
+end
