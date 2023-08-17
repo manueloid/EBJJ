@@ -74,11 +74,3 @@ function fidelity(q::ConstantQuantity, c::Control, corrections::Vector{Float64})
     fidelity(t, psi) = abs2.(dagger(ψf) * psi)
     return timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H; fout=fidelity)[2][end]  # Time evolution where the output is not the resulting state but the fidelity. It helps improving the speed of the calculation
 end
-
-tf = 0.01pi
-N = 20
-c = ControlFull(N, 0.2, 10, 0.4, tf)
-q = ConstantQuantity(c)
-corrs = corrections([2, 4, 6], c)
-fidelity(q, c, corrs)
-fidelity(q, c)

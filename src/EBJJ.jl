@@ -45,4 +45,10 @@ export G_factor
 export K_factor
 export corrections
 
+include("constant_quantities.jl")
+export ConstantQuantity
+
+include("fidelity.jl")
+export fidelity
+
 end
