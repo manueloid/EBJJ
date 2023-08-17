@@ -64,3 +64,4 @@ function correction_poly(tf::Float64, correction_vector::Array{Float64,1})
     f(t::Float64) = Lagrange(xs, ys)(t)
     return t -> piecewise(t, tf, f)
 end
+correction_poly(c::Control, correction_vector::Array{Float64,1}) = correction_poly(c.T, correction_vector)
