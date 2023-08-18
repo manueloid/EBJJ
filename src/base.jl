@@ -20,7 +20,7 @@ Regardless of the Hamiltonian, the `ControlParameter` will contain the following
 
 abstract type Control end
 """
-ControlFull(N::Int64, T::Float64, J0::Float64, Jf::Float64, U::Float64)
+ControlFull(N::Int64, J0::Float64, Jf::Float64, U::Float64, T::Float64)
 Derived type of ControlParameter for the full Hamiltonian
 """
 struct ControlFull <: Control
@@ -37,10 +37,10 @@ Derived type of ControlParameter for the intermediate Hamiltonian
 """
 struct ControlInt <: Control
     N::Int64
-    T::Float64
     J0::Float64
     Jf::Float64
     U::Float64
+    T::Float64
 end
 
 #=

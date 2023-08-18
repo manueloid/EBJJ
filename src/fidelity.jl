@@ -46,7 +46,7 @@ In theory though, this is not a big issue when I want to calculate the evolution
 using EBJJ
 using QuantumOptics
 function Hbh(Jx::Operator, Jz::Operator, c::Control, J::Function)
-    return t::Float64 -> -2.0 * J(t) * Jx + c.U * Jz^2
+    return t::Float64 -> -2.0 * J(t) * Jx + c.U * Jz^2/ c.N 
 end
 function Hbh(Jx::Operator, Jz::Operator, c::Control)
     J(t::Float64) = control_function(c)(t)
@@ -54,7 +54,7 @@ function Hbh(Jx::Operator, Jz::Operator, c::Control)
 end
 function Hbh(Jx::Operator, Jz::Operator, c::Control, corrections::Vector{Float64})
     corr = EBJJ.correction_poly(c.T, corrections)
-    J(t::Float64) = control_function(c)(t) + corr(t)
+    J(t::Float64) = control_function(c)(t) - corr(t)
     return Hbh(Jx, Jz, c, J)
 end
 
