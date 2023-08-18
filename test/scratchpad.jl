@@ -77,5 +77,25 @@ In particular, we have
 - $ \gamma_f = 100 $
 =#
 
-J(γ::Int64, N::Int64, U) = γ * U * N / 2.0
-J0 = J(10, 100, 0.49)
+J(γ::Int64, N::Int64, U) = U * N / (2.0 * γ)
+N = 10
+J0 = J(10, N, 0.49);
+Jf = J(100, N, 0.49);
+tf = 0.5 # in seconds
+U = 0.49;
+c = ControlFull(N, J0, Jf, U, tf);
+J(t::Float64) = control_function(c)(t);
+tarr(tf::Float64) = range(0.0, tf, length=1000);
+plot(tarr(tf) ./ tf, J.(tarr(tf)))
+q = ConstantQuantity(c);
+corr = corrections([2, 4, 6], c);
+fid = fidelity(q, c)
+
+εs = range(-100.5, 100.5, length=100) |> collect
+fidε = [fidelity(q, c, ε * corr) for ε in εs]
+
+plot(εs, fidε)
+
+
+fid = fidelity(q, c)
+fidelity(q, c, corr)
