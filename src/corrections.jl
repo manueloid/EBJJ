@@ -154,11 +154,11 @@ In both cases, the value $ \mathcal{N} $ is the number of energy levels we are c
 I think it would make more sense to define all the relevant parameters in one big function, and only then evaluate the values for $ G_n $ and $ K_n $, to then finally evaluate the corrections.
 =#
 function corrections(k::Vector{ComplexF64}, g::ComplexF64)
-    H = k * k' # Hessian matrix 
-    v = g' * k |> real # Fidelity vector
-    num = norm(v)^3 * v
-    den = v' * H * v
-    return num / den |> real
+    v = real(conj(g) * k)
+    hessian = k * k' |> real
+    num = v * norm(v)^3
+    den = v' * hessian * v
+    return num / den
 end
 corrections(g::ComplexF64, k::Vector{ComplexF64}) = corrections(k, g)
 """
@@ -180,11 +180,11 @@ function corrections(ns::Vector{Int64}, c::Control; λs::Int64=5)
     for i in 1:length(ns)
         global num = ns[i]
         # Function to evaluate the Kns
-        k(v) = K_factor(num, v[2], η(v[1]), k(v[1]), h) * grad(v[1])
+        K(v) = K_factor(num, v[2], η(v[1]), k(v[1]), h) * grad(v[1])
         # Function to evaluate the Gns
-        g(v) = G_factor(num, v[2], η(v[1]), k(v[1]), h) * J(v[1])
-        Kn::Vector{ComplexF64} = hcubature(k, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
-        Gn::ComplexF64 = hcubature(g, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
+        G(v) = G_factor(num, v[2], η(v[1]), k(v[1]), h) * J(v[1])
+        Kn::Vector{ComplexF64} = hcubature(K, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
+        Gn::ComplexF64 = hcubature(G, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
         corr += corrections(Kn, Gn)
     end
     return corr
