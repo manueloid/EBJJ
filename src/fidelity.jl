@@ -42,11 +42,6 @@ A lot of memory can be saved by defining the operators and the eigenstates only 
 
 In theory though, this is not a big issue when I want to calculate the evolution of the fidelity as a function of time, but I will do that regardless as it gives me some flexibility.
 =#
-
-using EBJJ
-using QuantumOptics
-function Hbh(Jx::Operator, Jz::Operator, c::Control, J::Function)
-    return t::Float64 -> -2.0 * J(t) * Jx + c.U * Jz^2
 #=
 # Fidelity calculation
 =#
@@ -92,8 +87,6 @@ A lot of memory can be saved by defining the operators and the eigenstates only 
 In theory though, this is not a big issue when I want to calculate the evolution of the fidelity as a function of time, but I will do that regardless as it gives me some flexibility.
 =#
 
-using EBJJ
-using QuantumOptics
 function Hbh(Jx::Operator, Jz::Operator, c::Control, J::Function)
     return t::Float64 -> -2.0 * J(t) * Jx + c.U * Jz^2
 end
@@ -122,7 +115,6 @@ function fidelity(q::ConstantQuantity, c::Control, corrections::Vector{Float64})
     H(t, psi) = Hbh(Jx, Jz, c, corrections)(t)
     fidelity(t, psi) = abs2.(dagger(ψf) * psi)
     return timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H; fout=fidelity)[2][end]  # Time evolution where the output is not the resulting state but the fidelity. It helps improving the speed of the calculation
-end
 end
 function Hbh(Jx::Operator, Jz::Operator, c::Control)
     J(t::Float64) = control_function(c)(t)

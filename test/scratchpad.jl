@@ -78,21 +78,22 @@ In particular, we have
 =#
 
 J(γ::Int64, N::Int64, U) = U * N / (2.0 * γ)
-N = 100
+N = 10
 J0 = J(10, N, 0.49);
 Jf = J(100, N, 0.49);
-tf =   0.001 # in seconds
+tf = 0.03 # in seconds
 U = 0.49;
 c = ControlFull(N, J0, Jf, U, tf);
 J(t::Float64) = control_function(c)(t);
 tarr(tf::Float64) = range(0.0, tf, length=1000);
 q = ConstantQuantity(c);
 # corr = corrections([2], c)
+corr = rand(5) * N
 fid = fidelity(q, c)
-# fid_corr = fidelity(q, c,corr)
-
-εs = range(-500.0, 500.0, length=100) |> collect
+fid_corr = fidelity(q, c, -corr)
+εs = range(-1.0, 1.0, length=100) |> collect
 fidε = [fidelity(q, c, ε * corr) for ε in εs]
+using Plots
 plot(εs, fidε)
 
 
