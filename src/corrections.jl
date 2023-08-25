@@ -156,7 +156,7 @@ I think it would make more sense to define all the relevant parameters in one bi
 function corrections(k::Vector{ComplexF64}, g::ComplexF64)
     v = real(conj(g) * k)
     hessian = k * k' |> real
-    num = v * norm(v)^3
+    num = v * norm(v)^2
     den = v' * hessian * v
     return num / den
 end
