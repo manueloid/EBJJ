@@ -1,43 +1,11 @@
 #=
 # STA Wave function 
 
-I need to things slowly and carefully, and write tests along the way.
-In this file I will only focus on defining the wave function and the functions that will go into the integrals, in a different one I will actually evaluate the eSTA corrections i.e. the integrals.
-
-I am going to use the fact that $ \alpha ^2 $ is the inverse of the argument of the Gaussian part in the STA wave function, and if we are going to call the argument $ \eta^2 $, the parameter $ \beta $ is nothing more than $ \sqrt{\Re{\eta^2}} $.
-
-Thus, we can simplify the term $ \alpha ^2 \beta ^2 -1 $ that appears twice in the Fourier transform of the product of the Gaussian term and the Hermite polynomial as $ \eta^{2*} / \eta^2 $
-
-I will first focus on the spatial term of the wave function and only then I will move on to the time dependent part, which is common to all the integrals and can thus be simplified greatly.
-
-Throughout this document, I will not define any function depeding on the actual values of the control parameters, I will only define functions that take general complex and real numbers as arguments.
-I will specialise the functions in the [relevant file](./src/corrections.jl), where I will also define the integrals.
-
-## 1. Spatial part
-
-For this term I will only need the product of the Gaussian term and the Hermite polynomial, where the only _tricky_ part is the argument of the Hermite polynomial, which is given by
-
-$$ \frac{\alpha^2 x^2}{\sqrt{2\alpha^2 \beta^2 - 1}} $$
-
-that can be rewritten with the formulation of $ \eta $ as
-
-$$ \frac{\sqrt{\Re[\eta^2]}}{\eta} \frac{1}{\gamma}  $$
-
-where $ \gamma = \sqrt{\eta^{2*} / \eta^2} $.
-
-### 1.1 General spatial part of the wave function and ground state
-
-Here I will define the general spatial part of the ground state of the STA wave function, as well as the ground state for it.
-The former is the lefthand side of the integral $ \langle \psi_n |\hat{H} | \psi_0 \rangle $, while the latter is the righthand side and it is only the gaussian term, the Hermite polynomial being one.
-
-#### 1.1.1 Code implementation
-
-I think it makes sense to define a function that takes only the energy level `n` and the position `z` as arguments as well as a general complex number `η`.
-I will then define the multiple dispatch versions of the function, where I can pass the arguments in any order.
-
-I would like to point out that `spatial_fourier` is not yet the complex conjugate of the spatial part, and it has to be implemented in due time.
+Now I am ready to start all the formulation with only one parameter, which is the complex number $ \eta $.
+I will start from the wave function I want to transform, which is given by
+$$
+\frac{\Re[\eta]}{\pi}
 =#
-
 """
     spatial_fourier(n::Int64, z, η::ComplexF64)
 Evaluate the analytic solution of the Fourier transform of the STA wave function for a complex number η, for a time `t` and at position `z`.

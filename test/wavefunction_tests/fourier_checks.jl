@@ -17,59 +17,33 @@ This can be done by considering the fact that the Fourier transform of the whole
 
 Hence the STA wave function in position representation is just the product of the time dependent term and the Fourier transform of term dependent on the momentum varible $p$.
 
-
+=#
+#=
 ### 1 Fourier transform general complex number
-First, I will define the analytical solution of the Fourier transform of the product of a Gaussian function of the form $ e^{-p^2/2\alpha}$ and a hermite polynomial of the form $ \mathcal_n(\beta p) $
+I want to start from the general case, where the parameter $ \eta $ is a complex number and it is not tied to the specific of the system.
+For the moment I do not want to be particularly efficient, I just want to check that the normalisation and the orthogonality hold.
 
-It is given by:
-$$ i^n \sqrt{\alpha} \exp\left\{\frac { -\alpha x^2}{2} \right\} \gamma^n \mathcal{H}_n\left( \frac{\alpha\beta}{\gamma}x\right)$$
-where
-$ \gamma = \sqrt{2 \alpha^2 \beta^2 - 1} $
+I will thus define the general STA wave function and then test the normalisation for different $ n $.
+I an not going to include the time dependent term, as it is not relevant for the normalisation.
 
-I am going to use the fact that if we call the argument of the Gaussian part $\eta^2$ (such that $ 1/\alpha^2 = \eta^2$), then the parameter $ \beta $ is nothing more than $ \sqrt{\Re{\eta^2}} $.
-Thus, we can simplify the term $ \alpha ^2 \beta ^2 -1 $ that appears twice in the Fourier transform of the product of the Gaussian term and the Hermite polynomial as $ \eta^{2*} / \eta^2 $.
-With this simplification, the term $\gamma$ becomes $ \eta^{2*} / \eta^{2} $.
-Moreover, the term $\alpha^2 \beta $ appearing in the numerator of the argument of the Hermite polynomial becomes $ \sqrt{\Re{\eta^2}} \eta^{2} $.
-
-This simplification is helpful as I can now write the Fourier transform of the product of the Gaussian term and the Hermite polynomial in term of only one parameter, $\eta$, which is the argument of the Gaussian term of the STA wave function in momentum representation.
-
-Then I will define the whole STA wave function in position representation and I will check if the normalisation and the orthogonality hold.
-
-I will start from the normalisation condition.
-I will check the normalisation for two different kinds of functions, that in theory should give the same result:
-1. the product of the STA wave function in position representation and its complex conjugate with no simplifations
-2. the product of the STA wave function in position representation and its complex conjugate with the simplifications already implemented in the function definition.
-
-For the moment I will just use the parameter $\alpha$ and $\beta$ to be complex numbers and I will check the normalisation for some fixed times.
-If everything works according to plan, I will then check if the same relation holds if I substitute $\alpha$ and $\beta$ with the respective time depending functions.
-
-Since calculating the normalisation in the case of general $\alpha$ and $\beta$ is quite cumbersome, I will only check the orthogonality. If that holds, I will then move on to define $\alpha$ and $\beta$ as functions of time.
 =#
 
-"""
-    `analytic(n::Int64, x::Float64, η::ComplexF64)`
-Return the value of the analytic solution of the Fourier transform of the product of a Gaussian function and a Hermite polynomial, at the point `x`, given the complex parameter `η` and the order of the Hermite polynomial `n`.
-If we want to connect this to the STA wave function, the parameter `η` is actually `η²`.
-"""
-function analytic(n::Int64, x::Float64, η::ComplexF64)
-    γ = sqrt(conj(η) / η) # this is the √α²β² - 1 factor
-    num = sqrt(real(η)) / η # This is the numerator inside the Hermite polynomial
-    return im^n / sqrt(η) * γ^n * exp(-x^2 / (2 * η)) * SpecialPolynomials.basis(Hermite, n)(num * x / γ)
-end
-"""
-    `orthogonality_check(n::Int64, m::Int64, α::ComplexF64, β::Float64)`
-Take the integral over the variable `x` of two analytic solutions of the Fourier transform of the product of a Gaussian function and a Hermite polynomial, with different values of `n` and `m`, given a complex parameter `η`.
-"""
-function orthogonality_check(n::Int64, m::Int64, η::ComplexF64)
-    return quadgk(x -> conj(analytic(n, x, η)) * analytic(m, x, η), -1e8, 1e8, atol=1e-3)[1]
-end
-@testset "Orthogonality test, general complex number η" begin
-    η = 0.4 + 0.2im
-    # Check that the integral is zero if n != m
-    for n in 0:1, m in 0:2
-        if n != m
-            @test orthogonality_check(n, m, η) ≈ 0.0 + 0.0im
-        end
+normalisation(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 4) / sqrt(2^n * factorial(n)) * im^n * sqrt(conj(η) / η)^n / sqrt(η)
+normalisation(n::Int64, η::ComplexF64) = normalisation(η, n)
+gaussian(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
+gaussian(η::ComplexF64, z::Float64) = gaussian(z, η)
+hermite(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
+hermite(n::Int64, η::ComplexF64, z::Float64) = hermite(n, z, η)
+hermite(η::ComplexF64, n::Int64, z::Float64) = hermite(n, z, η)
+spatial_fourier(n::Int64, z::Float64, η::ComplexF64) = normalisation(η, n) * gaussian(z, η) * hermite(n, z, η)
+spatial_fourier(n::Int64, η::ComplexF64, z::Float64) = spatial_fourier(n, z, η)
+spatial_fourier(η::ComplexF64, n::Int64, z::Float64) = spatial_fourier(n, z, η)
+
+@testset "normalisation STA position general" begin
+    η = rand(ComplexF64)
+    norm(n::Int64, η::ComplexF64) = quadgk(z -> conj(spatial_fourier(n, z, η)) * spatial_fourier(n, z, η), -Inf, Inf, atol=1e-7)[1]
+    for n in 0:5
+        @test isapprox(norm(n, η), 1.0, atol=1e-7)
     end
 end
 
@@ -110,6 +84,7 @@ function wave_function(n::Int64, t, x, c::Control)
 end
 
 #=
+#=
 #### 2.1.1 Code implementation
 
 I think it would make sense to integrate over the two dimensions $ x $ and $ t $, so that we can check the normalisation for different values of $ t $.
@@ -132,5 +107,6 @@ I am goinot to use low tolerance, as the requirement for the normalisation is no
         @test isapprox(normalisation |> real, c.T, atol=1e-3)
     end
 end
+=#
 
 

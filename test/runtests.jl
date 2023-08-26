@@ -21,5 +21,5 @@ Just remember that the default parameters are:
 =#
 # include("control.jl")
 # include("./wavefunction_tests/momentum_checks.jl")
-# include("./wavefunction_tests/fourier_checks.jl")
-include("./wavefunction_tests/final_checks.jl")
+include("./wavefunction_tests/fourier_checks.jl")
+# include("./wavefunction_tests/final_checks.jl")
