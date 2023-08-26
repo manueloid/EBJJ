@@ -5,6 +5,7 @@ using ForwardDiff
 using SpecialPolynomials
 using HCubature
 using EBJJ
+using Test
 
 #=
 # Fourier checks
@@ -41,9 +42,6 @@ spatial_fourier(η::ComplexF64, n::Int64, z::Float64) = spatial_fourier(n, z, η
 
 @testset "normalisation STA position general" begin
     η = rand(ComplexF64)
-    norm(n::Int64, η::ComplexF64) = quadgk(z -> conj(spatial_fourier(n, z, η)) * spatial_fourier(n, z, η), -Inf, Inf, atol=1e-7)[1]
-    for n in 0:5
-        @test isapprox(norm(n, η), 1.0, atol=1e-7)
     end
 end
 
@@ -66,47 +64,55 @@ All the relevant simplifications have been carried out in [the relevant notebook
 =#
 
 """
-    `wave_function(n, t, x, c::Control)`
+    `spatial_fourier(n, t, z, c::Control)`
 Return the value of the STA wave function in position representation at the point `x` and at time `t`, given the control parameters `c`.
 This is the function with absolutely no simplifications and it is the one I am going to test against.
+There is no time dependent part in this function, as it is not relevant for the normalisation.
 """
 function wave_function(n::Int64, t, x, c::Control)
-    ξ0, U = EBJJ.scaling_ξ0(c), c.U # constants
+    J0, N, U = c.J0, c.N, c.U
     b(t) = auxiliary(t, c) # Auxiliary function
     db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    normalisation = sqrt(EBJJ.scaling_ξ0(c)) / (π)^0.25 # Normalisation factor
-    itp = EBJJ.interpolation_integral(c) # Interpolating function for the integral of the phase
-    imaginary_phase(n, t) = exp(-im * (n + 0.5) * ξ0^2 * U / 2 * itp(t)) # Imaginary phase
-    η(t) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t))) # Argument of the Gaussian term
-    spatial(n, t, x) = analytic(n, x, η(t)) # Spatial term
-    excitation(n, t) = sqrt(2^n * factorial(n) * b(t)) # Excitation term
-    return normalisation / excitation(n, t) * imaginary_phase(n, t) * spatial(n, t, x)
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * b(t) / (U * db(t)) # Parameter of the Gaussian term
+    return spatial_fourier(n, x, α(t))
 end
-
-#=
-#=
-#### 2.1.1 Code implementation
-
-I think it would make sense to integrate over the two dimensions $ x $ and $ t $, so that we can check the normalisation for different values of $ t $.
-
-If the normalisation is correct, we should have that:
-
-$$ \int_{0}^{t_f} \int_{-\infty}^{\infty} \psi_n^*(x, t) \psi_n(x, t) dx dt = t_f $$
-
-where $ t_f $ is the final time of the STA protocol.
-I am goinot to use low tolerance, as the requirement for the normalisation is not too strict
-=#
-
-@testset "normalisation STA position full" begin
-    c = ControlFull()
-    for n in 0:5
-        # defining a new function that takes only two arguments
-        f(x) = conj(wave_function(n, x[1], x[2], c)) * wave_function(n, x[1], x[2], c)
-        # integrating over the two dimensions
-        normalisation = hcubature(f, [0.0, -1e3], [c.T, 1e3], rtol=1e-3)[1]
-        @test isapprox(normalisation |> real, c.T, atol=1e-3)
+@testset "normalisation with system parameters" begin
+    c = ControlFull(10, 0.03)
+    norm(n, t) = quadgk(x -> conj(wave_function(n, t, x, c)) * wave_function(n, t, x, c), -Inf, Inf, atol=1e-7)[1] |> real
+    for t in range(1e-3, c.T - 1e-3, length=100), n in 0:5
+        @test isapprox(norm(n, t), 1.0, atol=1e-3)
     end
 end
+
+#=
+### 3 Splitting all the stuff
+Here I need to define the functions that will go in the calculation of the corrections.
+I basically have something of the form $ \langle \chi_n| \hat{O} | \chi_0  \rangle $, where $ \hat{O} $ is some kind of operator.
+
+The righthand side of the integral is nothing more that the ground state, while for the lefthand side I need to take the complex conjugate of the general STA wave function.
+
+Code-wise, I think I am going to define a function to evaluate the lefthand side where I will pass the complex conjugate of the variable instead of taking the complex conjugate of the whole function.
+
+First let me check if the two approaches are equivalent.
 =#
+
+function wave_function_conj(n::Int64, t, x, c::Control)
+    J0, N, U = c.J0, c.N, c.U
+    b(t) = auxiliary(t, c) # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * b(t) / (U * db(t)) # Parameter of the Gaussian term
+    return spatial_fourier(n, x, α(t))
+end
+
+@testset "conjugation" begin
+    c = ControlFull(10, 0.03)
+    for _ in 1:10000
+        x = rand() * 10
+        t = c.T * rand()
+        n = rand(0:2:10)
+        @test isapprox(wave_function_conj(n, t, x, c), conj(wave_function(n, t, x, c)), atol=1e-7)
+    end
+end
+
 
 
