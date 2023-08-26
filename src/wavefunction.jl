@@ -2,31 +2,31 @@
 # STA Wave function 
 
 Now I am ready to start all the formulation with only one parameter, which is the complex number $ \eta $.
-I will start from the wave function I want to transform, which is given by
-$$
-\frac{\Re[\eta]}{\pi}
+The transform has been working ok, now I need to define the functions that will be used to evaluate the integrand.
+
+In the [test file](./test/wavefunction_tests/fourier_checks.jl) I have set up all the full wave functions, in case they are needed.
+In this file though, I will need only some of them, and I will define them as I go.
+
+I will start from what I called the _lefthand side_ of the integrand.
+By taking into account the fact that the integrand we need to calculate is of the form $ \langle \chi_n | \hat{O} | \chi_0 \rangle $, we call _lefthand side_ the function $ \chi_n^{*} $ times the part of $ \chi_0 $ upon which the operator doesn't act. 
+
+For the moment I am not going to introduce the imaginary phase as I do not have clear in mind what is the best way to implement it.
+
+I will also start by defining functions that only take general complex values as input, to make the code a little more flexible.
+The whole _lefthand side_ function is given by three major terms:
+1. the normalisation term
+2. the Gaussian term
+3. the Hermite polynomial term
+
+The way these factors are derived is described in other files.
+When I will need to evaluate the integrand, I will pass the explicit value of the parameter $ \eta $ and it will be the explicit complex conjugate.
+By doing that I will be able to avoid the complex conjugation of the whole function, which is a little more expensive.
 =#
-"""
-    spatial_fourier(n::Int64, z, η::ComplexF64)
-Evaluate the analytic solution of the Fourier transform of the STA wave function for a complex number η, for a time `t` and at position `z`.
-The value η is nothing more than 1/α² in the notes, while β is the real part of η.
-"""
-function spatial_fourier(n::Int64, z::Float64, η::ComplexF64)
-    γ = sqrt(conj(η) / η) # this is the √α²β² - 1 factor
-    num = sqrt(real(η)) / η # This is the numerator inside the Hermite polynomial
-    return exp(-z^2 / (2 * η)) * SpecialPolynomials.basis(Hermite, n)(z * num / γ) |> conj
-end
 
-# Multiple dispatch version of the previous function
-spatial_fourier(n::Int64, η::ComplexF64, z::Float64) = spatial_fourier(n, z, η)
-spatial_fourier(η::ComplexF64, n::Int64, z::Float64) = spatial_fourier(n, z, η)
-spatial_fourier(η::ComplexF64, z::Float64, n::Int64) = spatial_fourier(n, z, η)
-spatial_fourier(z::Float64, η::ComplexF64, n::Int64) = spatial_fourier(n, z, η)
-spatial_fourier(z::Float64, n::Int64, η::ComplexF64) = spatial_fourier(n, z, η)
-
-# Ground state of the STA wave function multiply dispatched
-ground_state(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
-ground_state(η::ComplexF64, z::Float64) = ground_state(z, η)
+normalisation(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 2) / sqrt(2^n * factorial(n)) * (-im)^n * sqrt(conj(η) / η)^n / abs(η)
+gaussian(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
+hermite(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
+spatial_fourier(n::Int64, z::Float64, η::ComplexF64) = normalisation(η, n) * gaussian(z, η) * hermite(n, z, η)
 
 #=
 Since the part of the integrand depending on the $ b_h $ factor does not have any simplification that can be carried out, there is no need to define it here.
@@ -62,104 +62,29 @@ The function will take only a complex number `η` and a position `z` as argument
 
 =#
 sd_groundstate(z::Float64, η::ComplexF64) = (z^2 - η) * exp(-z^2 / (2 * η)) / η^2
-sd_groundstate(η::ComplexF64, z::Float64) = sd_groundstate(z, η)
 
 #=
-## 2. Exclusively time dependent part
+### 2 Imaginary phase
 
-By what I have already described in a [different file](~/Repos/ExternalBJJ/Documents/Formulae/latex_build/formulae.pdf), we can simplify the product of the time dependent parts of the STA functions.
-This is
-
-$$
-\sqrt{\frac{\Re[\eta^2]}{\pi}} \frac{1}{\Re[\eta^2]} % normalisation not depending on the excitation
-	\frac{-i^n \gamma^{n}}{\sqrt{2^{n}n!}} % normalisation term depending on the excitation
-	\exp\left\{i n \int_{0}^{t} \frac{\xi_{0}^{2} U }{2 b(\tau)^{2}} d\tau \right\} % imaginary time evolution factor
-    tag{1}
-$$ 
-
-where we have
-$$
-	\eta^2 = \frac{\xi_0^2}{b(t)^2}-\frac{2 i b'(t)}{U b(t)}
-    \tag{2}
-$$
-
-and $ \gamma $ is $\frac{\eta^{2*}}{\eta^{2}}$.
-
-### 2.1 Code implementation
-
-I found out that in a very high level implementation of the code, I can define both the time dependent part of the product of the wave function by passing just three arguments:
-1. the energy level `n`
-2. a complex number `η`
-3. a real number `k`
-
-The real number `k` is the value of the integral function at the time `t`, and it is used to evaluate the imaginary phase.
-To be verbose, the value of `k` is given by (at time `t`)
-$$ \int_0^t \frac{\xi_0^2 U}{2 b(\tau )^2} \, d\tau $$
-
-While the value of `η` is given by (at time `t` as well )
-$$ \frac{\xi_0^2}{b(t)^2} - \frac{2i}{U} \frac{db(t)}{b(t)} $$
-
-From equation 1, we can see that the normalisation factor can be split into two parts, one where the excitation energy is taken into account, and one where it is not.
-I can thus use the multiple dispatch where I can pass only one argument, and one where I can pass both the energy level and the complex numbers.
-
-I need to remember that the name of the variable `\eta` can be a little misleading, as it actually not the complex number $\eta$ but its square.
-Moreover, I will define the second normalisation function as taking `γ` as an argument, as it makes the code more readable.
-
-=#
-
-# First part of the normalisation
-normalisation(η::ComplexF64) = sqrt(real(η) / pi) / abs(η)
-
-# Second part of the normalisation, the one with the excitation energy
-normalisation(n::Int64, η::ComplexF64) = (-im)^n * sqrt(conj(η) / η)^n / sqrt(2^n * factorial(n))
-normalisation(η::ComplexF64, n::Int64) = normalisation(n, η)
-
-# Imaginary phase
-imaginary_phase(n::Int64, k::Float64) = exp(im * n * k)
-imaginary_phase(k::Float64, n::Int64) = imaginary_phase(n, k)
-
-# Full function
-function time_dependent(n::Int64, η::ComplexF64, k::Float64)
-    η = conj(η)
-    γ = sqrt(conj(η) / η)
-    return normalisation(η) * normalisation(n, γ) * imaginary_phase(n, k)
-end
-
-# Multiple dispatch combinations
-time_dependent(n::Int64, k::Float64, η::ComplexF64) = time_dependent(n, η, k)
-time_dependent(k::Float64, η::ComplexF64, n::Int64) = time_dependent(n, η, k)
-time_dependent(k::Float64, n::Int64, η::ComplexF64) = time_dependent(n, η, k)
-time_dependent(η::ComplexF64, k::Float64, n::Int64) = time_dependent(n, η, k)
-time_dependent(η::ComplexF64, n::Int64, k::Float64) = time_dependent(n, η, k)
-
-#=
-#### 2.1.1 Imaginary phase
 As said earlier, this function is quite tricky from a numerical point of view, as the implicit integral is not easy to evaluate.
 To overcome this problem, I need to figure out what is the best way to implement the integral.
 I think my best take is to try to interpolate the integral function and then define a new one, instead of calling the `quadgk` function recursively.
 After some tests, I found that the interpolation with 1000 points is the best compromise between speed and accuracy.
 
-I will first define the general algorithm to return the integral function given the function to integrate and the time interval.
-I decided to have the function returning the interpolated function so that I do not have to interpolate it every time I need to evaluate it.
+Regardless, I think the best thing to do is to define this function when I actually need it, i.e. in the body of the functions in which it is used.
 
-Finally, I chose not to define the final imaginary phase function, I will define it later in the `time_dependent` function.
+### 3 Example of implementation
+
+In the following I will only set up some examples of implementation of the functions defined above, hopefully it will help in the future.
+
+function test_ground_state(n::Int64, t, c::Control)
+    J0, N, U = c.J0, c.N, c.U
+    b(t) = auxiliary(t, c)                                                    # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t)                                      # Derivative of the auxiliary function
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t))  # Parameter of the Gaussian term
+    αc(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
+    lhs(x) = lhs_spatial_fourier(n, x, αc(t))                                 # Lefthand side of the integrand
+    rhs(x) = gaussian(x, α(t))                                                # Righthand side of the integrand
+    return quadgk(x -> lhs(x) * rhs(x), -Inf, Inf,  atol=1e-7)[1] |> real     # Integral
+end
 =#
-
-"""
-    interpolation_integral(tf::Float64, b::Function64; npoints=1000)
-Return a function which is the interpolation of the function f(t) = ∫₀ᵗ b(τ) dτ in the interval [0, tf].
-The function takes the argument `npoints` which is the number of points used for the interpolation. The default value is 1000 as it is the best trade-off between speed and accuracy.
-"""
-function interpolation_integral(tf::Float64, b; npoints=100)
-    trange = range(0.0, tf, length=npoints)
-    integral_values = [quadgk(t -> b(t), 0.0, t)[1] for t in trange]
-    itp = linear_interpolation(trange, integral_values)
-    return itp
-end
-interpolation_integral(c::Control, b; npoints=100) = interpolation_integral(c.T, b, npoints=npoints)
-function interpolation_integral(c::Control; npoints=100)
-    ξ0, U = EBJJ.scaling_ξ0(c), c.U
-    b(t::Float64) = auxiliary(t, c)
-    to_int(t::Float64) = ξ0^2 * U / b(t)^2
-    return interpolation_integral(c, to_int; npoints=npoints)
-end

@@ -30,15 +30,9 @@ I an not going to include the time dependent term, as it is not relevant for the
 =#
 
 normalisation(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 4) / sqrt(2^n * factorial(n)) * im^n * sqrt(conj(η) / η)^n / sqrt(η)
-normalisation(n::Int64, η::ComplexF64) = normalisation(η, n)
 gaussian(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
-gaussian(η::ComplexF64, z::Float64) = gaussian(z, η)
 hermite(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
-hermite(n::Int64, η::ComplexF64, z::Float64) = hermite(n, z, η)
-hermite(η::ComplexF64, n::Int64, z::Float64) = hermite(n, z, η)
 spatial_fourier(n::Int64, z::Float64, η::ComplexF64) = normalisation(η, n) * gaussian(z, η) * hermite(n, z, η)
-spatial_fourier(n::Int64, η::ComplexF64, z::Float64) = spatial_fourier(n, z, η)
-spatial_fourier(η::ComplexF64, n::Int64, z::Float64) = spatial_fourier(n, z, η)
 
 @testset "normalisation STA position general" begin
     η = rand(ComplexF64)
@@ -75,13 +69,13 @@ function wave_function(n::Int64, t, x, c::Control)
     J0, N, U = c.J0, c.N, c.U
     b(t) = auxiliary(t, c) # Auxiliary function
     db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * b(t) / (U * db(t)) # Parameter of the Gaussian term
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t)) # Parameter of the Gaussian term
     return spatial_fourier(n, x, α(t))
 end
 @testset "normalisation with system parameters" begin
     c = ControlFull(10, 0.03)
     norm(n, t) = quadgk(x -> conj(wave_function(n, t, x, c)) * wave_function(n, t, x, c), -Inf, Inf, atol=1e-7)[1] |> real
-    for t in range(1e-3, c.T - 1e-3, length=100), n in 0:5
+    for t in range(0.0, c.T, length=100), n in 0:5
         @test isapprox(norm(n, t), 1.0, atol=1e-3)
     end
 end
@@ -102,7 +96,7 @@ function wave_function_conj(n::Int64, t, x, c::Control)
     J0, N, U = c.J0, c.N, c.U
     b(t) = auxiliary(t, c) # Auxiliary function
     db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * b(t) / (U * db(t)) # Parameter of the Gaussian term
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * db(t) / (U * b(t)) # Parameter of the Gaussian term
     return spatial_fourier(n, x, α(t))
 end
 @testset "conjugation" begin
@@ -128,10 +122,10 @@ lhs_normalisation(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 2) / sqrt(2^n
 lhs_normalisation(n::Int64, η::ComplexF64) = lhs_normalisation(η, n)
 lhs_spatial_fourier(n::Int64, z::Float64, η::ComplexF64) = lhs_normalisation(η, n) * gaussian(z, η) * hermite(n, z, η)
 # When passing the actual value of the parameter η, I need to take the complex conjugate of the parameter
-function test_ground_state(η::ComplexF64,n::Int64)
+function test_ground_state(η::ComplexF64, n::Int64)
     lhs(x) = lhs_spatial_fourier(n, x, conj(η))
     rhs(x) = gaussian(x, η)
-    return quadgk(x -> lhs(x) * rhs(x), -Inf, Inf,  atol=1e-7)[1]
+    return quadgk(x -> lhs(x) * rhs(x), -Inf, Inf, atol=1e-7)[1]
 end
 
 @testset "Testing lhs general complex" begin
@@ -150,13 +144,16 @@ function test_ground_state(n::Int64, t, c::Control)
     J0, N, U = c.J0, c.N, c.U
     b(t) = auxiliary(t, c) # Auxiliary function
     db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * b(t) / (U * db(t)) # Parameter of the Gaussian term
-    return test_ground_state(α(t), n)
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t)) # Parameter of the Gaussian term
+    αc(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
+    lhs(x) = lhs_spatial_fourier(n, x, αc(t))
+    rhs(x) = gaussian(x, α(t))
+    return quadgk(x -> lhs(x) * rhs(x), -Inf, Inf, atol=1e-7)[1]
 end
 
 @testset "Testing lhs actual values" begin
-    c = ControlFull(10, 0.03)
-    for t in range(1e-3, c.T - 1e-3, length=100), n in 0:5
+    c = ControlFull(10, 0.3)
+    for t in range(0.0, c.T, length=100), n in 0:5
         if n == 0
             @test isapprox(test_ground_state(n, t, c), 1.0, atol=1e-3)
         else
@@ -164,4 +161,3 @@ end
         end
     end
 end
-
