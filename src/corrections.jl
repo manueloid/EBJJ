@@ -48,15 +48,14 @@ In the following code, I am going to define three functions:
 
 1. `bh_integrand`: this function will return the part of the integrand depending on the $ b_{h}(z) $ function, this term is common to both $ G_n $ and $ K_n $.
 2. `sd_integrand`: this function will return the part of the integrand depending on the $ \partial_{z}^{2} $ term, this term is only present in $ G_n $.
-3. `gradient_integrand`: this function will return the part of the integrand depending on the gradient of the control function, this term is only present in $ K_n $.
-
-Moreover, in order to calculate the actual integral, I need to import use the functions defined in the `wavefunctions.jl` file, in particular I need the `time_dependent` function, which is goiong to be common to both $ G_n $ and $ K_n $.
+3. `gradient`: this function will return the part of the integrand depending on the gradient of the control function, this term is only present in $ K_n $.
 
 The overall plan is to only define the rigth hand side of the integrand, i.e. the one on which the Hamiltonian acts upon.
 This is because the left hand side and the time dependent part are in common to the two integrals to calculate the corrections.
+I think though that it does not make sense to define general functions.
+I would rather define the $ G_n $ and $ K_n $ integrals in place, so that I do not have to define a lot of functions that I am not going to use.
 =#
 
-scaling_ξ0(c::Control) = sqrt(8c.J0 * c.N / c.U)
 bh(z::Float64, h::Float64) = abs(z) <= 1 ? √((1 + z + h) * (1 - z)) : 0.0 # One-liner function that returns the piecewise function bₕ(z)
 """
     bh_integrand(n::Int64, z, η::ComplexF64)
@@ -64,8 +63,7 @@ Return the value of the integrand depending on the `bh` term evaluated at positi
 It needs a complex number η as input as it will be easier to pass that value later on as a function of time
 """
 function bh_integrand(z::Float64, h::Float64, η::ComplexF64)
-    return bh(z - h, h) * ground_state(z - h, η) + bh(z, h) * ground_state(z + h, η)
-
+    return bh(z - h, h) * gaussian(z - h, η) + bh(z, h) * gaussian(z + h, η)
 end
 # no need to define the part depending on the second derivative of the ground state as this is already defined elsewhere.
 
@@ -75,7 +73,7 @@ Calculate the gradient of the control function, given an array of points in the 
 The output is an array of anonymous functions, where each function is the  i -th term of the gradient.
 This is basically an array of Lagrange polynomials that are 1 at the i-th point and 0 at all the others.
 """
-function gradient(tarray::Array{Float64,1})
+function gradient_int(tarray::Array{Float64,1})
     ncoeffs = length(tarray) - 2
     gradient = Array{Function}(undef, ncoeffs)
     for i in 1:ncoeffs
@@ -86,24 +84,6 @@ function gradient(tarray::Array{Float64,1})
     return gradient
 end
 
-#=
-### 4. Code to calculate the $ G_n $ and $ K_n $ 
-
-In this section I am going to define the functions that will calculate the integrals $ G_n $ and $ K_n $.
-This is just a composition of the functions I defined here and in the other files.
-
-In this case I am going to define the functions in such a way that it will take the control parameter `ControlFull`as one of the input, and then pass the corresponding values in the functions.
-
-I thing eventually I will implement everything in one big function, but for now I will proceed step by step, this will be then used as a blueprint for future work.
-=#
-#=
-#### 4.1. $ G_n $
-
-To calculate the $ G_n $, I only need to calculate the integral I defined earlier and do that for different values of $n$.
-
-I would like to define a general function that takes many arguments as parameter.
-I know it is not the best way to do that, but it will help me reducing the allocation in the long term.
-=#
 
 function G_factor(n::Int64, z::Float64, η::ComplexF64, k::Float64, h::Float64)
     return time_dependent(n, η, k) *             # time dependent part
@@ -153,6 +133,7 @@ In both cases, the value $ \mathcal{N} $ is the number of energy levels we are c
 
 I think it would make more sense to define all the relevant parameters in one big function, and only then evaluate the values for $ G_n $ and $ K_n $, to then finally evaluate the corrections.
 =#
+
 function corrections(k::Vector{ComplexF64}, g::ComplexF64)
     v = real(conj(g) * k)
     hessian = k * k' |> real
@@ -167,25 +148,37 @@ Return a tuple of the form '(Kₙ, Gₙ)', given the energy level `n` and the co
 Everything is defined in place as it is easier to implement.
 """
 function corrections(ns::Vector{Int64}, c::Control; λs::Int64=5)
+    # Definition of the constant
+    J0, N, U = c.J0, c.N, c.U
+    h = 2.0/N
+    # Definition of the auxiliary functions
     b(t) = auxiliary(t, c)
     db(t) = ForwardDiff.derivative(b, t)
     ddb(t) = ForwardDiff.derivative(db, t)
     J = control_function(b, ddb, c)
-    ξ0, U, h = EBJJ.scaling_ξ0(c), c.U, 1.0 / c.N # constants
-    k(t::Float64) = EBJJ.interpolation_integral(c)(t)
-    η(t::Float64) = (ξ0^2 / b(t)^2 - 2im * db(t) / (U * b(t)))
-    gradient_functions = gradient(collect(0.0:c.T/(λs+1):c.T))
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t))  # Parameter of the Gaussian term
+    αc(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
+    # Gradient of the control function
+    gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
     grad(t::Float64) = [g(t) for g in gradient_functions]
-    corr = zeros(Float64, λs)
+    corr = zeros(Float64, λs) 
     for i in 1:length(ns)
         global num = ns[i]
         # Function to evaluate the Kns
-        K(v) = K_factor(num, v[2], η(v[1]), k(v[1]), h) * grad(v[1])
-        # Function to evaluate the Gns
-        G(v) = G_factor(num, v[2], η(v[1]), k(v[1]), h) * J(v[1])
+        K(x) = 
+            grad(x[1]) * 
+            spatial_fourier(num, x[2], αc(x[1])) * 
+            bh_integrand(x[2], h, α(x[1]))
         Kn::Vector{ComplexF64} = hcubature(K, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
+        # Function to evaluate the Gns
+        G(x) = 
+        spatial_fourier(num, x[2], αc(x[1])) *
+        (   
+            -2J(x[1])*bh_integrand(x[2], h, α(x[1])) -
+            sd_groundstate(x[2], α(x[1]))
+        )
         Gn::ComplexF64 = hcubature(G, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
-        corr += corrections(Kn, Gn)
+        corr[i] = corrections(Kn, Gn)
     end
     return corr
 end
