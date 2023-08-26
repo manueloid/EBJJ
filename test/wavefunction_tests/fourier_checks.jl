@@ -42,6 +42,8 @@ spatial_fourier(η::ComplexF64, n::Int64, z::Float64) = spatial_fourier(n, z, η
 
 @testset "normalisation STA position general" begin
     η = rand(ComplexF64)
+    for n in 0:5
+        @test isapprox(quadgk(x -> conj(spatial_fourier(n, x, η)) * spatial_fourier(n, x, η), -Inf, Inf, atol=1e-7)[1], 1.0, atol=1e-3)
     end
 end
 
@@ -103,7 +105,6 @@ function wave_function_conj(n::Int64, t, x, c::Control)
     α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * b(t) / (U * db(t)) # Parameter of the Gaussian term
     return spatial_fourier(n, x, α(t))
 end
-
 @testset "conjugation" begin
     c = ControlFull(10, 0.03)
     for _ in 1:10000
@@ -114,5 +115,53 @@ end
     end
 end
 
+#=
+### 4 Lefthand side
 
+Here I am going to set up the code for the left hand side of the integrand.
+I will write down the calculations in a separate notebook, so here I will just write down the code.
+
+First I will define everything in terms of a general complex variable and then I will pass the actual value of the parameter $ \eta $.
+=#
+
+lhs_normalisation(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 2) / sqrt(2^n * factorial(n)) * (-im)^n * sqrt(conj(η) / η)^n / abs(η)
+lhs_normalisation(n::Int64, η::ComplexF64) = lhs_normalisation(η, n)
+lhs_spatial_fourier(n::Int64, z::Float64, η::ComplexF64) = lhs_normalisation(η, n) * gaussian(z, η) * hermite(n, z, η)
+# When passing the actual value of the parameter η, I need to take the complex conjugate of the parameter
+function test_ground_state(η::ComplexF64,n::Int64)
+    lhs(x) = lhs_spatial_fourier(n, x, conj(η))
+    rhs(x) = gaussian(x, η)
+    return quadgk(x -> lhs(x) * rhs(x), -Inf, Inf,  atol=1e-7)[1]
+end
+
+@testset "Testing lhs general complex" begin
+    for _ in 1:10000
+        η = rand(ComplexF64)
+        n = rand(0:2:10)
+        if n == 0
+            @test isapprox(test_ground_state(η, n), 1.0, atol=1e-3)
+        else
+            @test isapprox(test_ground_state(η, n), 0.0, atol=1e-3)
+        end
+    end
+end
+
+function test_ground_state(n::Int64, t, c::Control)
+    J0, N, U = c.J0, c.N, c.U
+    b(t) = auxiliary(t, c) # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * b(t) / (U * db(t)) # Parameter of the Gaussian term
+    return test_ground_state(α(t), n)
+end
+
+@testset "Testing lhs actual values" begin
+    c = ControlFull(10, 0.03)
+    for t in range(1e-3, c.T - 1e-3, length=100), n in 0:5
+        if n == 0
+            @test isapprox(test_ground_state(n, t, c), 1.0, atol=1e-3)
+        else
+            @test isapprox(test_ground_state(n, t, c), 0.0, atol=1e-3)
+        end
+    end
+end
 
