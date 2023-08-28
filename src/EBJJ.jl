@@ -25,6 +25,7 @@ using Interpolations
 using SpecialPolynomials
 using HCubature
 using LinearAlgebra
+using QuantumOptics
 
 include("base.jl")
 export Control

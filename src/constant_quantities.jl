@@ -33,9 +33,6 @@ I will start from a generic one that takes the parameters of the system as a inp
 This first constructor will take only number types as input, I will specialize this in the remainder of the code to take also `Control` types as input.
 =#
 
-using QuantumOptics
-using EBJJ
-
 struct ConstantQuantity
     Jz::Operator
     Jx::Operator

@@ -116,29 +116,3 @@ function fidelity(q::ConstantQuantity, c::Control, corrections::Vector{Float64})
     fidelity(t, psi) = abs2.(dagger(ψf) * psi)
     return timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H; fout=fidelity)[2][end]  # Time evolution where the output is not the resulting state but the fidelity. It helps improving the speed of the calculation
 end
-function Hbh(Jx::Operator, Jz::Operator, c::Control)
-    J(t::Float64) = control_function(c)(t)
-    return Hbh(Jx, Jz, c, J)
-end
-function Hbh(Jx::Operator, Jz::Operator, c::Control, corrections::Vector{Float64})
-    corr = EBJJ.correction_poly(c.T, corrections)
-    J(t::Float64) = control_function(c)(t) + corr(t)
-    return Hbh(Jx, Jz, c, J)
-end
-
-function fidelity(q::ConstantQuantity, c::Control)
-    ψ0, ψf = q.ψ0, q.ψf
-    Jx, Jz = q.Jx, q.Jz
-    tf = c.T
-    H(t, psi) = Hbh(Jx, Jz, c)(t)
-    fidelity(t, psi) = abs2.(dagger(ψf) * psi)
-    return timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H; fout=fidelity)[2][end]  # Time evolution where the output is not the resulting state but the fidelity. It helps improving the speed of the calculation
-end
-function fidelity(q::ConstantQuantity, c::Control, corrections::Vector{Float64})
-    ψ0, ψf = q.ψ0, q.ψf
-    Jx, Jz = q.Jx, q.Jz
-    tf = c.T
-    H(t, psi) = Hbh(Jx, Jz, c, corrections)(t)
-    fidelity(t, psi) = abs2.(dagger(ψf) * psi)
-    return timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H; fout=fidelity)[2][end]  # Time evolution where the output is not the resulting state but the fidelity. It helps improving the speed of the calculation
-end

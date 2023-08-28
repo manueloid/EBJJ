@@ -150,7 +150,7 @@ Everything is defined in place as it is easier to implement.
 function corrections(ns::Vector{Int64}, c::Control; λs::Int64=5)
     # Definition of the constant
     J0, N, U = c.J0, c.N, c.U
-    h = 2.0/N
+    h = 2.0 / N
     # Definition of the auxiliary functions
     b(t) = auxiliary(t, c)
     db(t) = ForwardDiff.derivative(b, t)
@@ -159,26 +159,31 @@ function corrections(ns::Vector{Int64}, c::Control; λs::Int64=5)
     α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t))  # Parameter of the Gaussian term
     αc(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
     # Gradient of the control function
+    imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
+    φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
     gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
     grad(t::Float64) = [g(t) for g in gradient_functions]
-    corr = zeros(Float64, λs) 
+    corr = zeros(Float64, λs)
     for i in 1:length(ns)
         global num = ns[i]
         # Function to evaluate the Kns
-        K(x) = 
-            grad(x[1]) * 
-            spatial_fourier(num, x[2], αc(x[1])) * 
+        K(x) =
+            -2 * grad(x[1]) *
+            exp(im * num * φ(x[1])) *
+            spatial_fourier(num, x[2], αc(x[1])) *
             bh_integrand(x[2], h, α(x[1]))
-        Kn::Vector{ComplexF64} = hcubature(K, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
+        Kn::Vector{ComplexF64} = hcubature(K, [0.0, -1.0e1], [c.T, 1.0e1])[1]
         # Function to evaluate the Gns
-        G(x) = 
-        spatial_fourier(num, x[2], αc(x[1])) *
-        (   
-            -2J(x[1])*bh_integrand(x[2], h, α(x[1])) -
-            sd_groundstate(x[2], α(x[1]))
-        )
-        Gn::ComplexF64 = hcubature(G, [0.0, -1.0e1], [c.T, 1.0e1], atol=1.0e-5, maxevals=100000)[1]
-        corr[i] = corrections(Kn, Gn)
+        G(x) =
+            -2J(x[1]) *
+            exp(im * num * φ(x[1])) *
+            spatial_fourier(num, x[2], αc(x[1])) *
+            (
+                bh_integrand(x[2], h, α(x[1])) -
+                h^2 * sd_groundstate(x[2], α(x[1]))
+            )
+        Gn::ComplexF64 = hcubature(G, [0.0, -1.0e1], [c.T, 1.0e1])[1]
+        corr += corrections(Kn, Gn)
     end
     return corr
 end

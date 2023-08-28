@@ -73,9 +73,13 @@ I am not going to focus on the speed of the function, as it is only a test funct
 using EBJJ, LinearAlgebra, Test
 
 @testset "Testing the gradient function" begin
-    c = ControlFull()
-    xarr = range(0.0, stop=c.T, length=100) |> collect
-    sol = EBJJ.gradient(xarr)
-    id = Matrix(1.0I, length(xarr) - 2, length(xarr) - 2)
-    @test [solution(x) for solution in sol, x in xarr[2:end-1]] ≈ id
+    for _ in 1:100 # testing 100 times for random final times and number of particles
+        n = rand(1:10:100)
+        tf = rand(0.01:0.01:1.0)
+        c = ControlFull()
+        xarr = range(0.0, stop=c.T, length=100) |> collect
+        sol = EBJJ.gradient_int(xarr)
+        id = Matrix(1.0I, length(xarr) - 2, length(xarr) - 2)
+        @test [solution(x) for solution in sol, x in xarr[2:end-1]] ≈ id
+    end
 end

@@ -87,10 +87,17 @@ c = ControlFull(N, J0, Jf, U, tf);
 J(t::Float64) = control_function(c)(t);
 tarr(tf::Float64) = range(0.0, tf, length=1000);
 q = ConstantQuantity(c);
-# corr = corrections([2], c)
-corr = rand(5) * N
+corr = corrections([2], c)
+poly_corr = EBJJ.correction_poly(tf, corr)
+J_corr(t::Float64) = J(t) + poly_corr(t)
+using Plots
+tr = tarr(tf)
+plot(tr, J.(tr), label="Control function")
+plot!(tr, J_corr.(tr), label="Control function with corrections")
+# corr = rand(5) * N
 fid = fidelity(q, c)
-fid_corr = fidelity(q, c, -corr)
+fid_corr = fidelity(q, c, +corr)
+
 εs = range(-1.0, 1.0, length=100) |> collect
 fidε = [fidelity(q, c, ε * corr) for ε in εs]
 using Plots
