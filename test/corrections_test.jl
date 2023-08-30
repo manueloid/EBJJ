@@ -22,9 +22,16 @@ function argument(t, c::Control)
     α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t)) # Parameter of the Gaussian term
     return α(t)
 end
+function argument_c(t, c::Control)
+    J0, N, U = c.J0, c.N, c.U
+    b(t) = auxiliary(t, c) # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * db(t) / (U * b(t)) # Parameter of the Gaussian term
+    return α(t)
+end
+
 normalisation_wh(n::Int64, η::ComplexF64) = (real(η) / pi)^(1 / 4) / sqrt(2^n * factorial(n)) * im^n * sqrt(conj(η) / η)^n / sqrt(η)
 normalisation_wh(n::Int64, t::Float64, c::Control) = normalisation_wh(n, argument(t, c))
-
 gaussian_wh(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
 hermite_wh(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
 spatial_fourier_wh(n::Int64, z::Float64, η::ComplexF64) = normalisation(η, n) * gaussian(z, η) * hermite(n, z, η)
@@ -46,7 +53,7 @@ end
 ground_state(t, x, c::Control) = wave_function(0, t, x, c)
 pairing(n::Int64, t, x, c::Control) = ground_state(t, x, c) * conj(wave_function(n, t, x, c))
 normalisation(n::Int64, η::ComplexF64) = (real(η) / pi)^(1 / 2) / sqrt(2^n * factorial(n)) * (-im)^n * sqrt(conj(η) / η)^n / abs(η)
-normalisation(n::Int64, t, c::Control) = normalisation(n, argument(t, c))
+normalisation(n::Int64, t, c::Control) = normalisation(n, argument_c(t, c))
 
 gaussian(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
 hermite(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
@@ -68,10 +75,9 @@ function simplified(n::Int64, t, x, c::Control)
 end
 
 @testset "Testing the normalisation" begin
-    for _ in 1:1000
-        n, tf = rand(0:2:6), rand(Float64)
-        c = ControlFull(n, tf )
-        t, z = rand(Float64) * c.T, rand(Float64)
+        tf = rand(Float64)
+        for t in range(eps(), tf - eps(), length = 100), n in 0:2:6
+        c = ControlFull(n, tf)
         @test isapprox( conj(normalisation_wh(n, t, c)) * normalisation_wh(0, t, c), normalisation(n, t, c), atol = 1e-4) 
     end
 end
