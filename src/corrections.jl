@@ -84,6 +84,22 @@ function gradient_int(tarray::Array{Float64,1})
     return gradient
 end
 
+#=
+### Definition of the wave function
+
+Here I will define the whole wave function, with no simplifications made and I am going to use it to calculate the corrections.
+It will not be the best in terms of code optimization but I want to check if there is any difference in the two approaches.
+=#
+
+function wave_function(n::Int64, t, x, c::Control)
+    J0, N, U = c.J0, c.N, c.U
+    b(t) = auxiliary(t, c) # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t)) # Parameter of the Gaussian term
+    imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
+    φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
+    return exp(-im * (n + 1/2) * φ(t)) * spatial_fourier(n, x, α(t))
+end
 
 function G_factor(n::Int64, z::Float64, η::ComplexF64, k::Float64, h::Float64)
     return time_dependent(n, η, k) *             # time dependent part
