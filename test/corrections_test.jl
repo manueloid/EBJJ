@@ -75,9 +75,24 @@ function simplified(n::Int64, t, x, c::Control)
 end
 
 @testset "Testing the normalisation" begin
-        tf = rand(Float64)
-        for t in range(eps(), tf - eps(), length = 100), n in 0:2:6
+    tf = rand(Float64)
+    for t in range(eps(), tf - eps(), length=100), n in 0:2:6
         c = ControlFull(n, tf)
-        @test isapprox( conj(normalisation_wh(n, t, c)) * normalisation_wh(0, t, c), normalisation(n, t, c), atol = 1e-4) 
+        @test isapprox(conj(normalisation_wh(n, t, c)) * normalisation_wh(0, t, c), normalisation(n, t, c), atol=1e-4)
     end
 end
+@testset "Testing the imaginary phase" begin
+    tf = rand(Float64)
+    c = ControlFull(0, tf)
+    J0, N, U = c.J0, c.N, c.U
+    b(t) = auxiliary(t, c)
+    imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
+    φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
+    f_wh(t::Float64, n::Int64) = exp(-im * (n + 1 / 2) * φ(t))
+    f(t::Float64, n::Int64) = exp(im * n * φ(t))
+    trange = range(eps(), tf - eps(), length=100)
+    for t in trange, n in 0:2:6
+        @test conj(f_wh(t, n)) * f_wh(t, 0) ≈ f(t, 0)
+    end
+end
+
