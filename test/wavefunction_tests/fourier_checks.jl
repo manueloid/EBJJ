@@ -36,8 +36,10 @@ spatial_fourier(n::Int64, z::Float64, η::ComplexF64) = normalisation(η, n) * g
 
 @testset "normalisation STA position general" begin
     η = rand(ComplexF64)
+    k = rand(Float64)
+    f(k,n) = exp( im * (n + 1 / 2) * k)
     for n in 0:5
-        @test isapprox(quadgk(x -> conj(spatial_fourier(n, x, η)) * spatial_fourier(n, x, η), -Inf, Inf, atol=1e-7)[1], 1.0, atol=1e-3)
+        @test isapprox(quadgk(x -> conj(f(k,n)*spatial_fourier(n, x, η)) *f(k,n)* spatial_fourier(n, x, η), -Inf, Inf, atol=1e-7)[1], 1.0, atol=1e-3)
     end
 end
 
@@ -70,7 +72,9 @@ function wave_function(n::Int64, t, x, c::Control)
     b(t) = auxiliary(t, c) # Auxiliary function
     db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
     α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t)) # Parameter of the Gaussian term
-    return spatial_fourier(n, x, α(t))
+    imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
+    φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
+    return exp(-im * (n + 1/2) * φ(t)) * spatial_fourier(n, x, α(t))
 end
 @testset "normalisation with system parameters" begin
     c = ControlFull(10, 0.03)
@@ -79,6 +83,18 @@ end
         @test isapprox(norm(n, t), 1.0, atol=1e-3)
     end
 end
+@testset "Orthogonalisation with system parameters" begin
+    c = ControlFull(10, 0.03)
+    orth(n,m,t) = quadgk(x -> conj(wave_function(n, t, x, c)) * wave_function(m, t, x, c), -Inf, Inf, atol=1e-7)[1] |> real
+    for _ in 1:1000
+        t, n, m = rand(0.0:c.T), rand(0:3), rand(4:7)
+        if n == m
+            @test isapprox(orth(n, m, t), 1.0, atol=1e-3)
+        else
+            @test isapprox(orth(n, m, t), 0.0, atol=1e-3)
+        end
+    end
+end    
 
 #=
 ### 3 Splitting all the stuff
