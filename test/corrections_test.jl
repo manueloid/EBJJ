@@ -67,8 +67,11 @@ function simplified(n::Int64, t, x, c::Control)
     return exp(im * n * φ(t)) * spatial_fourier(n, x, αc(t)) * gaussian(x, α(t))
 end
 
-n = 0
-c = ControlFull()
-t, z = rand(Float64) * c.T, rand(Float64)
-conj(normalisation_wh(n, t, c)) * normalisation_wh(0, t, c)
-normalisation(n, t, c)
+@testset "Testing the normalisation" begin
+    for _ in 1:1000
+        n, tf = rand(0:2:6), rand(Float64)
+        c = ControlFull(n, tf )
+        t, z = rand(Float64) * c.T, rand(Float64)
+        @test isapprox( conj(normalisation_wh(n, t, c)) * normalisation_wh(0, t, c), normalisation(n, t, c), atol = 1e-4) 
+    end
+end
