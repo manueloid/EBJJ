@@ -11,6 +11,10 @@ There is no need to use a general complex value $ \eta $, as I already checked t
 I will thus start by using the function definition that takes into account the parameters of the system.
 =#
 
+normalisation_wh(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 4) / sqrt(2^n * factorial(n)) * im^n * sqrt(conj(η) / η)^n / sqrt(η)
+gaussian_wh(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
+hermite_wh(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
+spatial_fourier_wh(n::Int64, z::Float64, η::ComplexF64) = normalisation_wh(η, n) * gaussian_wh(z, η) * hermite_wh(n, z, η)
 """
      wave_function(n::Int64, t, x, c::Control)
 Return a general STA wave function for excitation `n` at time `t` and position `z`.
@@ -23,10 +27,10 @@ function wave_function(n::Int64, t, x, c::Control)
     α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t)) # Parameter of the Gaussian term
     imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
     φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
-    return exp(-im * (n + 1 / 2) * φ(t)) * spatial_fourier(n, x, α(t))
+    return exp(-im * (n + 1 / 2) * φ(t)) * spatial_fourier_wh(n, x, α(t))
 end
-ground_state(n::Int64, t, x, c::Control) = wave_function(n, t, x, c)
-pairing(n::Int64, t, x, c::Control) = wave_function(n, t, x, c) * conj(wave_function(n, t, x, c))
+ground_state(t, x, c::Control) = wave_function(0, t, x, c)
+pairing(n::Int64, t, x, c::Control) = ground_state( t, x, c) * conj(wave_function(n, t, x, c))
 normalisation(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 2) / sqrt(2^n * factorial(n)) * (-im)^n * sqrt(conj(η) / η)^n / abs(η)
 gaussian(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
 hermite(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
@@ -47,8 +51,11 @@ function simplified(n::Int64, t, x, c::Control)
     return exp(im * n * φ(t)) * spatial_fourier(n, x, αc(t)) * gaussian(x, α(t))
 end
 
-n = 3
-t, z = rand(Float64), rand(Float64)
-c = ControlFull()
-pairing(n, t, z, c)
-simplified(n, t, z, c)
+@testset "Testing the simplifications" begin
+    c = ControlFull()
+    for _ in 1:1000, n in 0:5
+        t, z = rand(Float64), rand(Float64)
+        @test pairing(n, t, z, c) ≈ simplified(n, t, z, c)
+    end
+end
+
