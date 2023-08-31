@@ -59,3 +59,21 @@ end
     end
 end
 
+#=
+### Full normalisation test
+
+If the normalisation holds, the integral over the whole time interval should yield the width of the time interval.
+I am going to test this.
+=#
+
+@testset "Normalisation over time interval" begin
+    tf = rand()
+    np = rand(10:10:100)
+    c = ControlFull(np, tf)
+    lim = 1e3
+    for n in 2:2:4
+        wf(x) = conj(  wave_function(n, x[1],x[2], c) ) * wave_function(n, x[1], x[2], c) |> real
+        result = hcubature(wf, [0.0, -lim], [tf, lim], rtol=1e-11, atol=1e-10)[1]
+        @test result ≈ tf
+    end
+end
