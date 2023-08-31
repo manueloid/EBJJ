@@ -57,15 +57,6 @@ I would rather define the $ G_n $ and $ K_n $ integrals in place, so that I do n
 =#
 
 bh(z::Float64, h::Float64) = abs(z) <= 1 ? √((1 + z + h) * (1 - z)) : 0.0 # One-liner function that returns the piecewise function bₕ(z)
-"""
-    bh_integrand(n::Int64, z, η::ComplexF64)
-Return the value of the integrand depending on the `bh` term evaluated at position `z`, given a shift `h`.
-It needs a complex number η as input as it will be easier to pass that value later on as a function of time
-"""
-function bh_integrand(z::Float64, h::Float64, η::ComplexF64)
-    return bh(z - h, h) * gaussian(z - h, η) + bh(z, h) * gaussian(z + h, η)
-end
-# no need to define the part depending on the second derivative of the ground state as this is already defined elsewhere.
 
 """
     gradient(tarray::Array{Float64, 1})
@@ -90,22 +81,66 @@ end
 Here I will define the whole wave function, with no simplifications made and I am going to use it to calculate the corrections.
 It will not be the best in terms of code optimization but I want to check if there is any difference in the two approaches.
 =#
-
-function wave_function(n::Int64, t, x, c::Control)
+normalisation(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 2) / sqrt(2^n * factorial(n)) * (-im)^n * sqrt(conj(η) / η)^n / abs(η)
+gaussian(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
+hermite(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
+spatial_fourier(n::Int64, z::Float64, η::ComplexF64) = normalisation(η, n) * gaussian(z, η) * hermite(n, z, η)
+"""
+    simplified(n::Int64, t, x, c::Control)
+Return the value of the product between complex conjugate of a STA wave function and the ground state, assuming all the simplifications have been carried out.
+"""
+function simplified(n::Int64, t, x, c::Control)
     J0, N, U = c.J0, c.N, c.U
-    b(t) = auxiliary(t, c) # Auxiliary function
-    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t)) # Parameter of the Gaussian term
+    # Definition of the auxiliary functions
+    b(t) = auxiliary(t, c)
+    db(t) = ForwardDiff.derivative(b, t)
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - 2im * db(t) / (U * b(t))  # Parameter of the Gaussian term
+    αc(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + 2im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
     imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
     φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
-    return exp(-im * (n + 1 / 2) * φ(t)) * spatial_fourier(n, x, α(t))
+    return exp(im * n * φ(t)) * spatial_fourier(n, x, αc(t)) * gaussian(x, αc(t))
 end
 
-function G_factor(n::Int64, z::Float64, η::ComplexF64, k::Float64, h::Float64)
-    return time_dependent(n, η, k) *             # time dependent part
-           spatial_fourier(n, η, z) *           # spatial part, of energy level n
-           (bh_integrand(z, h, η) - sd_groundstate(z, η))
+function corrections(k::Vector{ComplexF64}, g::ComplexF64)
+    v = real(conj(g) * k)
+    hessian = k * k' |> real
+    num = v * norm(v)^2
+    den = v' * hessian * v
+    return num / den
 end
+corrections(g::ComplexF64, k::Vector{ComplexF64}) = corrections(k, g)
+function corrections(n::Int64, c::Control, λs::Int64=5)
+    J0, N, U = c.J0, c.N, c.U
+    h = 2.0 / N
+    # Definition of the auxiliary functions
+    b(t) = auxiliary(t, c)
+    db(t) = ForwardDiff.derivative(b, t)
+    ddb(t) = ForwardDiff.derivative(db, t)
+    J = control_function(b, ddb, c)
+    gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
+    grad(t::Float64) = [g(t) for g in gradient_functions]
+    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - 2im * db(t) / (U * b(t))  # Parameter of the Gaussian term
+    αc(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + 2im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
+    imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
+    φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
+    lhs(t, z) = exp(im * n * φ(t)) * spatial_fourier(n, z, αc(t)) * gaussian(z, αc(t)) # left hand side of the integrand, same for both
+    rhs_g(t, z) = -2 * J(t) * (
+                      bh(z, h) * gaussian(z + h, α(t)) + bh(z - h, h) * gaussian(z - h, α(t)) -
+                      h^2 * sd_groundstate(z, α(t))
+                  )
+    rhs_k(t, z) = -2 * grad(t) * (bh(z, h) * gaussian(z + h, α(t)) + bh(z - h, h) * gaussian(z - h, α(t)))
+    gn = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [0.0, -1.0e1], [c.T, 1.0e1], atol=1e-7)[1]
+    kn = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [0.0, -1.0e1], [c.T, 1.0e1], atol=1e-7)[1]
+    return corrections(gn, kn)
+end
+function corrections(narr::Vector{Int64}, c::Control; λs::Int64=5)
+    corrs = zeros(λs)
+    for n in narr
+        corrs += corrections(n, c)
+    end
+    return corrs
+end
+
 
 #=
 #### 4.2. $ K_n $
@@ -116,12 +151,6 @@ The nice part is that I do not have to use the function depending on the second 
 
 Similarly to what I have done with the $ G_n $ term, I will define a function that takes a lot of arguments.
 =#
-
-function K_factor(n::Int64, z::Float64, η::ComplexF64, k::Float64, h::Float64)
-    return time_dependent(n, η, k) *             # time dependent part
-           spatial_fourier(n, η, z) *           # spatial part, of energy level n
-           (bh_integrand(z, h, η))
-end
 
 #=
 ### 5. Correction calculations
@@ -150,57 +179,3 @@ In both cases, the value $ \mathcal{N} $ is the number of energy levels we are c
 I think it would make more sense to define all the relevant parameters in one big function, and only then evaluate the values for $ G_n $ and $ K_n $, to then finally evaluate the corrections.
 =#
 
-function corrections(k::Vector{ComplexF64}, g::ComplexF64)
-    v = real(conj(g) * k)
-    hessian = k * k' |> real
-    num = v * norm(v)^2
-    den = v' * hessian * v
-    return num / den
-end
-corrections(g::ComplexF64, k::Vector{ComplexF64}) = corrections(k, g)
-"""
-    corrections(n::Int64, c::Control; λs::Int64=5)
-Return a tuple of the form '(Kₙ, Gₙ)', given the energy level `n` and the control parameter `c`.
-Everything is defined in place as it is easier to implement.
-"""
-function corrections(ns::Vector{Int64}, c::Control; λs::Int64=5)
-    # Definition of the constant
-    J0, N, U = c.J0, c.N, c.U
-    h = 1 / N
-    # Definition of the auxiliary functions
-    b(t) = auxiliary(t, c)
-    db(t) = ForwardDiff.derivative(b, t)
-    ddb(t) = ForwardDiff.derivative(db, t)
-    J = control_function(b, ddb, c)
-    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t))  # Parameter of the Gaussian term
-    αc(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
-    # Gradient of the control function
-    imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
-    φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
-    gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
-    grad(t::Float64) = [g(t) for g in gradient_functions]
-    corr = zeros(Float64, λs)
-    lim = 1.0e2
-    for i in 1:length(ns)
-        global num = ns[i]
-        # Function to evaluate the Kns
-        K(x) =
-            -2 * grad(x[1]) *
-            exp(im * num * φ(x[1])) *
-            spatial_fourier(num, x[2], αc(x[1])) *
-            bh_integrand(x[2], h, α(x[1]))
-        Kn::Vector{ComplexF64} = hcubature(K, [0.0, -lim], [c.T, lim])[1]
-        # Function to evaluate the Gns
-        G(x) =
-            -2J(x[1]) *
-            exp(im * num * φ(x[1])) *
-            spatial_fourier(num, x[2], αc(x[1])) *
-            (
-                bh_integrand(x[2], h, α(x[1])) -
-                h^2 * sd_groundstate(x[2], α(x[1]))
-            )
-        Gn::ComplexF64 = hcubature(G, [0.0, -lim], [c.T, lim])[1]
-        corr += corrections(Kn, Gn)
-    end
-    return corr
-end

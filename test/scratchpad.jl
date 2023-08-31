@@ -78,30 +78,27 @@ In particular, we have
 =#
 
 J(γ::Int64, N::Int64, U) = U * N / (2.0 * γ)
-N = 10
-J0 = J(10, N, 0.49);
-Jf = J(100, N, 0.49);
-tf = 0.03 # in seconds
+N = 20
+J0 = J(10, N, 49.0);
+Jf = J(20, N, 49.0);
+tf = 2.0 # in seconds
 U = 0.49;
+fid = zeros(10)
+fid_corr = zeros(10)
+tfs = range(0.004, tf, length=10) |> collect
 c = ControlFull(N, J0, Jf, U, tf);
-J(t::Float64) = control_function(c)(t);
-tarr(tf::Float64) = range(0.0, tf, length=1000);
 q = ConstantQuantity(c);
-corr = corrections([2], c)
-poly_corr = EBJJ.correction_poly(tf, corr)
-J_corr(t::Float64) = J(t) + poly_corr(t)
-using Plots
-tr = tarr(tf)
-plot(tr, J.(tr), label="Control function")
-plot!(tr, J_corr.(tr), label="Control function with corrections")
-# corr = rand(5) * N
-fid = fidelity(q, c)
-fid_corr = fidelity(q, c, +corr)
+for (index, tf) in enumerate(tfs)
+    c = ControlFull(N, J0, Jf, U, tf)
+    J(t::Float64) = control_function(c)(t)
+    corr = corrections([2, 4, 6], c)
+    # fid[index] = fidelity(q, c)
+    # fid_corr[index] = fidelity(q, c, +corr)
+    fid_corr[index] = norm(corr)
+end
 
-εs = range(-1.0, 1.0, length=100) |> collect
-fidε = [fidelity(q, c, ε * corr) for ε in εs]
-using Plots
-plot(εs, fidε)
+# plot(tfs, fid)
+plot(tfs[3:end], fid_corr[3:end])
 
 
 fid = fidelity(q, c)

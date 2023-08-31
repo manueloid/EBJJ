@@ -11,5 +11,4 @@ using ForwardDiff
 using QuadGK
 using Interpolations
 using SpecialPolynomials
-
-
+using HCubature
