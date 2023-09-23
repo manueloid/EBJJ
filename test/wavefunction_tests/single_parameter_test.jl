@@ -1,12 +1,75 @@
 #=
-# Testing the validity of the single parameter
+# Single Parameter testing
 
-In this file I am going to check if all the calculations I made in the derivation of the STA wave function with only on complex parameter, is valid.
+In the notes I already set up the calculations where only one parameter is used.
 
-The plan is to define the wave function with all the different paremeters and then check if it is equal to the one where only one parameter is passed.
+Just for reference, the formula of the Fourier transform of the STA wave function where the argument of the Gaussian part is set as the parameter $ \alpha $ is given by
+$$
+    \chi_n(z,t) = \left [ \frac{R_\alpha^2}{π}]^{1/4} \frac{1}{\sqrt{2^nn!} \exp\left\{- i \left(n + \frac{1}{2} \right) \int_0^t d\tau ~ U R_\alpha^2(\tau) \right\}
+    \frac{i^n}{\sqrt{\hbar}}\frac{1}{\alpha} \left[\frac{(\alpha^2)^*}{\alpha^2}\right]^{n/2}
+    \exp{-\frac{z^2}{2 \hbar^2 \alpha^2}}
+    \mathcal{H}_n\left(\frac{R_\alpha}{|\alpha^2|} \frac{z}{\hbar}\right)
+    \tag{1}
+$$
 
-The following is the wave function with only one parameter.
+where - in terms of the external bosonic Josephson Junction parameters - the value $ \alpha ^2 $ is defined as
+$$
+  \alpha^2 = \frac{ \sqrt{8 J_0 N / U}}{b^2} - \frac{2 i \dot{b}}{U b} 
+  \tag{2}
+$$
+
+and the term $ R $ is defined as the square root of the real part of $ \alpha ^2 $, i.e.
+$$
+R_\alpha = \sqrt{\Re(\alpha^2)} = \left(\frac{8J_0 N}{U}\right)^{1/4} \frac{1}{b}
+  \tag{3}
+$$
+
+What I want to test here is if the simplifications I made when dealing with the complex numbers are correct.
+In particular, I first want to check if the following equality holds
+$$
+2 \frac{R_\alpha^2}{\alpha^2} - 1 = /frac{(\alpha^2)^*}{\alpha^2} 
+\tag{4}
+$$
+
+Then I want to numerially check if the following relation is true
+$$
+    \frac{R_\alpha}{\alpha^2 \sqrt{2 \frac{R_\alpha^2}{\alpha^2} - 1}} = \frac{R_\alpha}{|\alpha^2|}
+\tag{5}
+$$
+
+As I said I am going to do that numerically, first I will pass some random complex number to see if the relations are correct and only then I will pass the actual values of $ \alpha^2 $ for different times $t$.
 =#
+
+using Test
+function test_1(param::ComplexF64)
+    r = sqrt(real(param))
+    result = 2 * r^2 / param - 1 - (conj(param) / param)
+    return result
+end
+@testset "testing relation 1" begin
+    for _ in 1:10000
+        @test isapprox(test_1(), 0.0, atol=1e-10)
+    end
+end
+function test_2(param::ComplexF64)
+    r = sqrt(real(param))
+    result = r / (param * sqrt(conj(param)/param)) - r/abs(param)
+    return result
+end
+@testset "testing relation 2" begin
+    for _ in 1:10000
+        param = 1000*rand(ComplexF64)
+        @test isapprox(test_2(param), 0.0, atol=1e-10)
+    end
+end
+
+
+
+
+
+
+
+
 
 normalisation_wh(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 4) / sqrt(2^n * factorial(n)) * im^n * sqrt(conj(η) / η)^n / sqrt(η)
 gaussian_wh(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
