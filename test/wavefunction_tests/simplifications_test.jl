@@ -142,7 +142,7 @@ function α2(t::Float64, c::Control)
     α(t::Float64) = (sqrt(8J0 * N / U) / b(t)^2 - 2im / U * db(t) / b(t))
     return α(t)
 end
-@testset "Normalisation test system parameters" begin
+@testset "Normalisation system parameters" begin
     tf = rand()
     np = rand(10:10:50)
     c = ControlFull(np, tf)
@@ -151,12 +151,11 @@ end
         n = rand(0:4)
         t = rand(0.0:tf)
         normalisation(z::Float64) = abs(whole(n, z, α2(t, c), h))^2
-        res = quadgk(normalisation, -Inf, Inf,)[1]
+        res = quadgk(normalisation, -10.0, 10.0,)[1]
         @test isapprox(res, 1.0, atol=1e-4)
     end
 end
-
-@testset "Normalisation system whole interval" begin
+@testset "Normalisation system whole time interval" begin
     tf = rand()
     np = rand(10:10:50)
     c = ControlFull(np, tf)
