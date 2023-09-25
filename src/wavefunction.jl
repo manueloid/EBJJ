@@ -135,21 +135,22 @@ function norm(n::Int64, α2::ComplexF64, α2c::ComplexF64, h::Float64)
     return (r^2 / pi)^(1 / 2) * (1 / sqrt(2^n * factorial(n))) * ((-im)^n / h) * (1 / abs(α2)) * (α2 / α2c)^(n / 2)
 end
 """
-    ga_wh(z::Float64, α2::ComplexF64)
+    gauss(z::Float64, α2::ComplexF64)
 Return the Gaussian part of the wave function at a given position for a general complex number `α2`.
 The idea is to pass the variable `z/h` when calling the function, so there is no need to pass the value `h` in this functio
 For the complex conjugate of this function, is just enough to pass the complex conjugate of the parameter `α2`.
 """
-function ga_wh(z::Float64, α2::ComplexF64)
+function gauss(z::Float64, α2::ComplexF64)
     return exp(-z^2 / (2 * α2))
 end
 """
-    he_wh(n::Int64, z::Float64, α2::ComplexF64)
+    herm(n::Int64, z::Float64, α2::ComplexF64)
 Return the valuee of the Hermite polynomial for excitation number `n` at the position `z` for a general complex number `α2`.
 Again, no need to pass the value `h` here, pass the value `z/h` when calling the function.
 """
-function he_wh(n::Int64, z::Float64, α2::ComplexF64)
-    return he(n, z * sqrt(real(α2)) / abs(α2))
+function herm(n::Int64, z::Float64, α2::ComplexF64)
+    r = sqrt(real(α2))
+    return he(n, z * r / abs(α2))
 end
 
 #=
