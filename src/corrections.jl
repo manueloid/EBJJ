@@ -75,36 +75,10 @@ function gradient_int(tarray::Array{Float64,1})
     return gradient
 end
 
-#=
-### Definition of the wave function
-
-Here I will define the whole wave function, with no simplifications made and I am going to use it to calculate the corrections.
-It will not be the best in terms of code optimization but I want to check if there is any difference in the two approaches.
-=#
-normalisation(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 2) / sqrt(2^n * factorial(n)) * (-im)^n * sqrt(conj(η) / η)^n / abs(η)
-gaussian(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
-hermite(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
-spatial_fourier(n::Int64, z::Float64, η::ComplexF64) = normalisation(η, n) * gaussian(z, η) * hermite(n, z, η)
-"""
-    simplified(n::Int64, t, x, c::Control)
-Return the value of the product between complex conjugate of a STA wave function and the ground state, assuming all the simplifications have been carried out.
-"""
-function simplified(n::Int64, t, x, c::Control)
-    J0, N, U = c.J0, c.N, c.U
-    # Definition of the auxiliary functions
-    b(t) = auxiliary(t, c)
-    db(t) = ForwardDiff.derivative(b, t)
-    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - 2im * db(t) / (U * b(t))  # Parameter of the Gaussian term
-    αc(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + 2im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
-    imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
-    φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
-    return exp(im * n * φ(t)) * spatial_fourier(n, x, αc(t)) * gaussian(x, αc(t))
-end
-
 function corrections(k::Vector{ComplexF64}, g::ComplexF64)
     v = real(conj(g) * k)
     hessian = k * k' |> real
-    num = v * norm(v)^2
+    num = v * LinearAlgebra.norm(v)^2
     den = v' * hessian * v
     return num / den
 end
@@ -119,18 +93,18 @@ function corrections(n::Int64, c::Control, λs::Int64=5)
     J = control_function(b, ddb, c)
     gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
     grad(t::Float64) = [g(t) for g in gradient_functions]
-    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - 2im * db(t) / (U * b(t))  # Parameter of the Gaussian term
-    αc(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + 2im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
-    imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
+    α2(t::Float64) = 1 / b(t)^2 * sqrt(8J0 * N / U) - 2im * db(t) / (U * b(t))  # Parameter of the Gaussian term
+    α2c(t::Float64) = 1 / b(t)^2 * sqrt(8J0 * N / U) + 2im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
+    imag_phase_integrand(t::Float64) = U * real(α2(t)) # Integrand of the phase factor
     φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
-    lhs(t, z) = exp(im * n * φ(t)) * spatial_fourier(n, z, αc(t)) * gaussian(z, αc(t)) # left hand side of the integrand, same for both
-    rhs_g(t, z) = -2 * J(t) * (
-                      bh(z, h) * gaussian(z + h, α(t)) + bh(z - h, h) * gaussian(z - h, α(t)) -
-                      h^2 * sd_groundstate(z, α(t))
+    lhs(z, t) = exp(im * n * φ(t)) * norm(n, α2(t), α2c(t), h) * herm(n, z / h, α2(t)) * gauss(z / h, α2c(t))
+    rhs_g(z, t) = -2 * J(t) * (
+                      bh(z, h) * gauss(z / h + h, α2(t)) + bh(z - h, h) * gauss(z / h - h, α2(t)) -
+                      h^2 * sd_groundstate(z, α2(t), h)
                   )
-    rhs_k(t, z) = -2 * grad(t) * (bh(z, h) * gaussian(z + h, α(t)) + bh(z - h, h) * gaussian(z - h, α(t)))
-    gn = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [0.0, -1.0e1], [c.T, 1.0e1], atol=1e-7)[1]
-    kn = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [0.0, -1.0e1], [c.T, 1.0e1], atol=1e-7)[1]
+    rhs_k(z, t) = -2 * grad(t) * (bh(z, h) * gauss(z / h + h, α2(t)) + bh(z - h, h) * gauss(z / h - h, α2(t)))
+    gn = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T])[1]
+    kn = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T])[1]
     return corrections(gn, kn)
 end
 function corrections(narr::Vector{Int64}, c::Control; λs::Int64=5)
