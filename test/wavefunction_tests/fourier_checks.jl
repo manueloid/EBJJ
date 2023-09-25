@@ -73,7 +73,7 @@ Numerically return the value of the Fourier transform of `toint` for the excitat
 It also takes the value of the parameter `h` which is the Planck constant.
 """
 function fourier_num(n::Int64, z::Float64, α2::ComplexF64, h::Float64)
-    return quadgk(p -> toint(n, p, α2) * exp(im * p * z), -Inf, Inf, atol=1e-7)[1] / sqrt(2 * π * h)
+    return quadgk(p -> toint(n, p, α2) * exp(im * p * z / h), -Inf, Inf, atol=1e-7)[1] / sqrt(2 * π * h)
 end
 """
     fourier_an(n::Int64, z::Float64, α2::ComplexF64, h::Float64)
@@ -89,7 +89,7 @@ end
         z = rand()
         α2 = rand(ComplexF64)
         h = 0.01
-        @test isapprox(fourier_num(n, z, α2, h), fourier_an(n, z, α2, h), atol=1e-4)
+        @test isapprox(fourier_num(n, z, α2, h), fourier_an(n, z / h, α2, h), atol=1e-4)
     end
 end
 
