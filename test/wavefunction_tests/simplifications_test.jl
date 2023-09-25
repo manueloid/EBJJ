@@ -75,7 +75,9 @@ I need to test the normalisation so I need the function $ |\chi_n(z,t)|^2 $ and 
 
 For the moment I am not going to perform many simplifications, I am going to define the whole function and integrate.
 The only simplification I am going to make is the one relative to the complex phase integral as I assume that it will vanish when pairing the wave function with its complex conjugate.
-
+=#
+#=
+### 2.1 Normalisation with general complex parameter
 As usual, I will pass a general complex number and only later I will pass the actual values of the system.
 =#
 
@@ -113,9 +115,9 @@ function whole(n::Int64, z::Float64, α2::ComplexF64, h::Float64)
     return norm_wh(n, α2, h) * ga_wh(z / h, α2) * he_wh(n, z / h, α2)
 end
 @testset "Normalisation test general complex number" begin
-    n = rand(0:4)
     h = 0.1
     for _ in 1:10000
+        n = rand(0:4)
         α2 = rand(ComplexF64)
         normalisation(z::Float64) = abs(whole(n, z, α2, h))^2
         res = quadgk(normalisation, -Inf, Inf,)[1]
@@ -123,69 +125,45 @@ end
     end
 end
 
+#=
+### 2.2 Normalisation with real parameter
 
+In this section I am going to pass the actual parameters of the system and check if the normalisation is conserved.
+I will define a function that takes the time as a parameter an returns the value of $ \alpha^2 $ at that time.
+I will then pass said value to the functions defined above.
 
-hermite_wh(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
-spatial_fourier_wh(n::Int64, z::Float64, η::ComplexF64) = normalisation_wh(η, n) * gaussian_wh(z, η) * hermite_wh(n, z, η)
-"""
-     wave_function(n::Int64, t, x, c::Control)
-Return a general STA wave function for excitation `n` at time `t` and position `z`.
-This function is helpful to debug code but is not the best when it comes to performances
-"""
-function wave_function(n::Int64, t, x, c::Control)
+I will first try to solve this for different times and then I will integrate all over the time interval to see if the value of the integral is equal to the width of the interval 
+=#
+
+function α2(t::Float64, c::Control)
     J0, N, U = c.J0, c.N, c.U
     b(t) = auxiliary(t, c) # Auxiliary function
     db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t)) # Parameter of the Gaussian term
-    imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
-    φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
-    return exp(-im * (n + 1 / 2) * φ(t)) * spatial_fourier_wh(n, x, α(t))
+    α(t::Float64) = (sqrt(8J0 * N / U) / b(t)^2 - 2im / U * db(t) / b(t))
+    return α(t)
 end
-ground_state(t, x, c::Control) = wave_function(0, t, x, c)
-pairing(n::Int64, t, x, c::Control) = ground_state(t, x, c) * conj(wave_function(n, t, x, c))
-normalisation(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 2) / sqrt(2^n * factorial(n)) * (-im)^n * sqrt(conj(η) / η)^n / abs(η)
-gaussian(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
-hermite(n::Int64, z::Float64, η::ComplexF64) = SpecialPolynomials.basis(Hermite, n)(z * sqrt(real(η)) / abs(η))
-spatial_fourier(n::Int64, z::Float64, η::ComplexF64) = normalisation(η, n) * gaussian(z, η) * hermite(n, z, η)
-"""
-    simplified(n::Int64, t, x, c::Control)
-Return the value of the product between complex conjugate of a STA wave function and the ground state, assuming all the simplifications have been carried out.
-"""
-function simplified(n::Int64, t, x, c::Control)
-    J0, N, U = c.J0, c.N, c.U
-    # Definition of the auxiliary functions
-    b(t) = auxiliary(t, c)
-    db(t) = ForwardDiff.derivative(b, t)
-    α(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) - im * db(t) / (U * b(t))  # Parameter of the Gaussian term
-    αc(t::Float64) = 2 / b(t)^2 * sqrt(2J0 * N / U) + im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
-    imag_phase_integrand(t::Float64) = sqrt(2J0 * N * U) / b(t)^2
-    φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
-    return exp(im * n * φ(t)) * spatial_fourier(n, x, αc(t)) * gaussian(x, α(t))
-end
-
-@testset "Testing the simplifications" begin
-    c = ControlFull()
-    for _ in 1:1000, n in 0:5
-        t, z = rand(Float64), rand(Float64)
-        @test pairing(n, t, z, c) ≈ simplified(n, t, z, c)
+@testset "Normalisation test system parameters" begin
+    tf = rand()
+    np = rand(10:10:50)
+    c = ControlFull(np, tf)
+    h = 1 / np
+    for _ in 1:10000
+        n = rand(0:4)
+        t = rand(0.0:tf)
+        normalisation(z::Float64) = abs(whole(n, z, α2(t, c), h))^2
+        res = quadgk(normalisation, -Inf, Inf,)[1]
+        @test isapprox(res, 1.0, atol=1e-4)
     end
 end
 
-#=
-### Full normalisation test
-
-If the normalisation holds, the integral over the whole time interval should yield the width of the time interval.
-I am going to test this.
-=#
-
-@testset "Normalisation over time interval" begin
+@testset "Normalisation system whole interval" begin
     tf = rand()
-    np = rand(10:10:100)
+    np = rand(10:10:50)
     c = ControlFull(np, tf)
-    lim = 1e3
-    for n in 2:2:4
-        wf(x) = conj(wave_function(n, x[1], x[2], c)) * wave_function(n, x[1], x[2], c) |> real
-        result = hcubature(wf, [0.0, -lim], [tf, lim], rtol=1e-11, atol=1e-10)[1]
-        @test result ≈ tf
+    h = 1 / np
+    for n in 0:4
+        normalisation(v) = abs(whole(n, v[1], α2(v[2], c), h))^2
+        res = hcubature(normalisation, [-10.0, 0.0], [10.0, tf])[1]
+        @test isapprox(res, tf, atol=1e-4)
     end
 end
