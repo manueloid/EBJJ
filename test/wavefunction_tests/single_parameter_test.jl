@@ -64,7 +64,7 @@ Given a complex number `param`, this function tests if the relation (5) holds.
 The relation is α^2 * sqrt(2 * R_α^2 / α^2 - 1) = |α^2|
 """
 function test_2(param::ComplexF64)
-    result = (param * sqrt(conj(param)/param)) - abs(param)
+    result = (param * sqrt(conj(param) / param)) - abs(param)
     return result
 end
 @testset "testing relation 2" begin
@@ -89,10 +89,9 @@ I would like to point out that in this case I did not make the substitution $ \h
 
 function α2(t::Float64, c::Control)
     J0, N, U = c.J0, c.N, c.U
-    h = 1 / N
     b(t) = auxiliary(t, c) # Auxiliary function
     db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
-    α(t::Float64) = ( sqrt(8J0 * N / U) / b(t)^2 - 2im / U * db(t) / b(t) ) 
+    α(t::Float64) = (sqrt(8J0 * N / U) / b(t)^2 - 2im / U * db(t) / b(t))
     return α(t)
 end
 c = ControlFull()

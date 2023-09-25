@@ -93,6 +93,31 @@ end
     end
 end
 
+#=
+### 2 Fourier transform actual values 
+
+In the next section I am going to pass the actual value of the parameter $ \alpha^2 $, as I have already done in other files.
+=#
+
+function α2(t::Float64, c::Control)
+    J0, N, U = c.J0, c.N, c.U
+    b(t) = auxiliary(t, c) # Auxiliary function
+    db(t) = ForwardDiff.derivative(b, t) # Derivative of the auxiliary function
+    α(t::Float64) = (sqrt(8J0 * N / U) / b(t)^2 - 2im / U * db(t) / b(t))
+    return α(t)
+end
+@testset "Fourier transform actual values" begin
+    for _ in 1:1000
+        n = rand(0:4)
+        N = rand(10:10:50)
+        c = ControlFull(N, 0.03)
+        h = 1 / N
+        t = rand(0.0:c.T)
+        @test isapprox(fourier_num(n, z, α2(t, c), h), fourier_an(n, z / h, α2(t, c), h), atol=1e-4)
+    end
+end
+
+
 
 normalisation(η::ComplexF64, n::Int64) = (real(η) / pi)^(1 / 4) / sqrt(2^n * factorial(n)) * im^n * sqrt(conj(η) / η)^n / sqrt(η)
 gaussian(z::Float64, η::ComplexF64) = exp(-z^2 / (2 * η))
