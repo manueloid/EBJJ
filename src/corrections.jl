@@ -75,47 +75,44 @@ function gradient_int(tarray::Array{Float64,1})
     return gradient
 end
 
-function corrections(k::Vector{ComplexF64}, g::ComplexF64)
-    v = real(conj(g) * k)
-    hessian = k * k' |> real
+function corrections(v::Vector{ComplexF64}, hessian::Matrix{ComplexF64})
     num = v * LinearAlgebra.norm(v)^2
     den = v' * hessian * v
-    return num / den
+    return num / den |> real
 end
-corrections(g::ComplexF64, k::Vector{ComplexF64}) = corrections(k, g)
-function corrections(n::Int64, c::Control, λs::Int64=5)
+
+function corrections(narr::Vector{Int64}, c::Control, λs::Int64=5)
     J0, N, U = c.J0, c.N, c.U
     h = 2.0 / N
     # Definition of the auxiliary functions
     b(t) = auxiliary(t, c)
     db(t) = ForwardDiff.derivative(b, t)
     ddb(t) = ForwardDiff.derivative(db, t)
-    J = control_function(b, ddb, c)
+    J = control_function(b, ddb, c) # Control function
     gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
     grad(t::Float64) = [g(t) for g in gradient_functions]
     α2(t::Float64) = 1 / b(t)^2 * sqrt(8J0 * N / U) - 2im * db(t) / (U * b(t))  # Parameter of the Gaussian term
     α2c(t::Float64) = 1 / b(t)^2 * sqrt(8J0 * N / U) + 2im * db(t) / (U * b(t)) # Complex Conjugate of the Parameter of the Gaussian term 
+    # Gns = 0.0 + 0.0im           # Variable to store the values gn
+    # Kns = zeros(ComplexF64, λs) # Variable to store the value kn
+    v = zeros(ComplexF64, λs) # Variable to store the value of the vector ∑ℜ(Gₙ† ⃗K^⃗)
+    Hess = zeros(ComplexF64, (λs, λs))
     imag_phase_integrand(t::Float64) = U * real(α2(t)) # Integrand of the phase factor
     φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
-    lhs(z, t) = exp(im * n * φ(t)) * norm(n, α2(t), α2c(t), h) * herm(n, z / h, α2(t)) * gauss(z / h, α2c(t))
-    rhs_g(z, t) = -2 * J(t) * (
-                      bh(z, h) * gauss(z / h + h, α2(t)) + bh(z - h, h) * gauss(z / h - h, α2(t)) -
-                      h^2 * sd_groundstate(z, α2(t), h)
-                  )
-    rhs_k(z, t) = -2 * grad(t) * (bh(z, h) * gauss(z / h + h, α2(t)) + bh(z - h, h) * gauss(z / h - h, α2(t)))
-    gn = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T])[1]
-    kn = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T])[1]
-    return corrections(gn, kn)
-end
-function corrections(narr::Vector{Int64}, c::Control; λs::Int64=5)
-    corrs = zeros(λs)
     for n in narr
-        corrs += corrections(n, c)
+        lhs(z, t) = exp(im * n * φ(t)) * norm(n, α2(t), α2c(t), h) * herm(n, z / h, α2(t)) * gauss(z / h, α2c(t))
+        rhs_g(z, t) = -2 * J(t) * (
+                          bh(z, h) * gauss(z / h + 1, α2(t)) + bh(z - h, h) * gauss(z / h - 1, α2(t)) -
+                          h^2 * sd_groundstate(z, α2(t), h)
+                      )
+        rhs_k(z, t) = -2 * grad(t) * (bh(z, h) * gauss(z / h + 1, α2(t)) + bh(z - h, h) * gauss(z / h - 1, α2(t)))
+        gn = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
+        kn = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
+        Hess += kn * kn'
+        v += conj(gn) * kn |> real
     end
-    return corrs
+    return corrections(v, Hess)
 end
-
-
 #=
 #### 4.2. $ K_n $
 

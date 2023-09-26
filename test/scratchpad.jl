@@ -80,8 +80,8 @@ In particular, we have
 J(γ::Int64, N::Int64, U) = U * N / (2.0 * γ)
 N = 10
 J0 = J(10, N, 49.0);
-Jf = J(30, N, 49.0);
-tf = 1.0 # in seconds
+Jf = J(40, N, 49.0);
+tf = 0.5 # in seconds
 U = 0.49;
 fid = zeros(10)
 fid_corr = zeros(10)
@@ -91,12 +91,14 @@ q = ConstantQuantity(c);
 for (index, tf) in enumerate(tfs)
     c = ControlFull(N, J0, Jf, U, tf)
     J(t::Float64) = control_function(c)(t)
-    corr = corrections([2], c)
+    corr = corrections([2, 4, 6], c)
     fid[index] = fidelity(q, c)
     fid_corr[index] = fidelity(q, c, +corr)
 end
+
+using Plots
 plot(tfs, fid)
-plot!(tfs[3:end], fid_corr[3:end])
+plot!(tfs, fid_corr)
 
 
 fid = fidelity(q, c)
