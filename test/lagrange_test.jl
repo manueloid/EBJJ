@@ -71,15 +71,34 @@ I am not going to focus on the speed of the function, as it is only a test funct
 =#
 
 using EBJJ, LinearAlgebra, Test
-
 @testset "Testing the gradient function" begin
     for _ in 1:100 # testing 100 times for random final times and number of particles
         n = rand(1:10:100)
-        tf = rand(0.01:0.01:1.0)
-        c = ControlFull()
+        tf = rand(Float64)
+        c = ControlFull(n, tf)
         xarr = range(0.0, stop=c.T, length=100) |> collect
         sol = EBJJ.gradient_int(xarr)
         id = Matrix(1.0I, length(xarr) - 2, length(xarr) - 2)
         @test [solution(x) for solution in sol, x in xarr[2:end-1]] ≈ id
+    end
+end
+
+#=
+### 3. Testing the correction polynomial
+
+Now that I have tested the gradient function, I need to find out if the control function that I obtain when applying the corrections is correct.
+The function I need is `EBJJ.correction_poly`
+=#
+
+@testset "Testing the correction polynomial" begin
+    for _ in 1:1000
+        tf = rand(Float64)
+        n = rand(1:10)
+        corrs = rand(Float64, n)
+        Δt = tf / (n + 1)
+        cpoly = EBJJ.correction_poly(tf, corrs)
+        for num in 1:n
+            @test cpoly(num * Δt) ≈ corrs[num]
+        end
     end
 end
