@@ -1,5 +1,61 @@
+#=
+# Polynomials used in the calculations
+
+In this file I am going to define all the polynomials that go into the definition of the control function $ J(t) $.
+In particular I am going to define the auxiliary function $ b(t) $ and its derivatives, and the control function $ J(t) $.
+
+The fac that I am going to define the derivatives explicitely, allows me to not use the package `ForwardDiff` in the main file.
+=#
+#=
+### 1. Auxiliary function
+
+The auxiliary function is the one that will go in the Ermakov equation, and it is defined as
+$$
+    b(t) = 1 + 
+       6 (\gamma - 1) \left( \frac{t}{T} \right)^3 
+    - 15 (\gamma - 1) \left( \frac{t}{T} \right)^4 
+    + 10 (\gamma - 1) \left( \frac{t}{T} \right)^5
+    \tag{1}
+$$
+where $ T $ is the total time of the process and $ \gamma $ in this case is given by $ \gamma = \left( \frac{J_0}{J_f} \right)^{1/4} $.
+
+#### 1.1 Auxiliary function derivatives
+
+I am going to explicitely define the derivatives of the auxiliary function $ b(t) $.
+For the first derivative, the result is
+$$
+    \dot{b}(t) = \frac{1}{T} \left( 
+        30 (\gamma - 1) \left( \frac{t}{T} \right)^2 
+      - 60 (\gamma - 1) \left( \frac{t}{T} \right)^3
+      + 30 (\gamma - 1) \left( \frac{t}{T} \right)^4 
+      \right)
+    \tag{2}
+$$
+and for the second derivative, we have
+$$
+    \ddot{b}(t) = \frac{1}{T^2} \left( 
+        60 (\gamma - 1) \left( \frac{t}{T} \right)
+      - 180 (\gamma - 1) \left( \frac{t}{T} \right)^2
+      + 120 (\gamma - 1) \left( \frac{t}{T} \right)^3 
+      \right).
+    \tag{3}
+$$
+Moreover, all of these functions are piecewise defined, so that they are zero outside the interval $ [0, T] $.
+=#
+#=
+### 2 Control function
+
+The control function is defined as
+$$
+    J(t) = \frac{J_0}{b(t)^4} - \frac{\ddot{b}(t)}{2 b(t) U N}
+    \tag{4}
+$$
+where $ U $ is the energy of the system and $ N $ is the number of particles.
+=#
+
 """
-`piecewise(t, cp::Control, f::Function)` take a function `f` and generates a piecewise function of the form 
+    piecewise(t, tf::Float64, f::Function)
+take a function `f` and generates a piecewise function of the form 
 `f(t) = f(0) if t < 0
 		f(t) if 0 <= t <= tf
 		f(tf) if t > tf`
@@ -13,55 +69,80 @@ function piecewise(t, tf::Float64, f::Function)
         return f(t)
     end
 end
+piecewise(t, c::Control, f::Function) = piecewise(t, c.T, f)
 """
-`auxiliary(t, tf::Float64, σ::Float64)` 
-Return the value of the auxiliary function at time `t`, for the boundary conditions σ.
+    auxiliary(t, tf::Float64, σ::Float64) 
+Return the value of the auxiliary function `b(t)` at time `t` given the final time `tf` and the parameter `σ`.
 """
-function auxiliary(t, tf::Float64, σ::Float64)
+function auxiliary(t::Float64, tf::Float64, σ::Float64)
     b(t) = 1 +
            10 * (σ - 1) * (t / tf)^3 -
            15 * (σ - 1) * (t / tf)^4 +
            6 * (σ - 1) * (t / tf)^5
-    return piecewise(t, tf, b)
+    return piecewise(t, tf, t -> b(t))
 end
 """
-`auxiliary(t, tf::Float64, J0::Float64, Jf::Float64)`
-	Return the value of the auxiliary function at time `t` given the boundary conditions `J0` and `Jf`.
+    auxiliary(t::Float64, c::Control)
+Return the value of the auxiliary function at time `t` given the control parameter `c`.
+It internally defines the parameter `σ` as `σ = (J0 / Jf)^0.25 givent the control parameter `c`.
 """
-function auxiliary(t, tf::Float64, J0::Float64, Jf::Float64)
-    σ = (J0 / Jf)^0.25 # calculate the value of σ, given the boundary conditions
-    return auxiliary(t, tf, σ) # return the value of the auxiliary function
+function auxiliary(t::Float64, c::Control)
+    σ = (c.J0 / c.Jf)^0.25 # calculate the value of σ, given the boundary conditions
+    return auxiliary(t, c.T, σ) # return the value of the auxiliary function
 end
 """
-`auxiliary(t, c::Control)`
-	Return the auxiliary function at time `t`, given the control parameter `c`.
+    auxiliary_1d(t::Float64, c::Control)
+Return the value of the first derivative of the auxiliary function at time `t` given the control parameter `c`.
 """
-function auxiliary(t, c::Control)
-    return auxiliary(t, c.T, c.J0, c.Jf) # return the value of the auxiliary function
-end
-auxiliary(c::Control) = t -> auxiliary(t, c) # auxiliary function at the final time
-"""
-    control_function(auxiliary::Function, ddauxiliary::Function, c::Control)
-Given the auxiliary function and its second derivative, it returns the control function as an anonymous function.
-"""
-function control_function(auxiliary::Function, ddauxiliary::Function, c::Control)
-    J(t::Float64) = c.J0 / auxiliary(t)^4 - ddauxiliary(t) / (2 * auxiliary(t) * c.U * c.N) # define the control function
-    return J # return the control function
-end
-function control_function(c::Control)
-    b(t) = auxiliary(t, c)
-    db(t) = ForwardDiff.derivative(b, t)
-    ddb(t) = ForwardDiff.derivative(db, t)
-    return control_function(b, ddb, c)
+function auxiliary_1d(t::Float64, c::Control)
+    σ = (c.J0 / c.Jf)^0.25
+    f(t) = 1 / c.T * (
+        30 * (σ - 1) * (t / c.T)^2 -
+        60 * (σ - 1) * (t / c.T)^3 +
+        30 * (σ - 1) * (t / c.T)^4
+    )
+    return piecewise(t, c.T, t -> f(t))
 end
 """
-    correction_poly(tf::Float64, correction_vector::Array{Float64,1})
-Return a function that is going to be used to correct the control function, given the whole time of the process and the vector of the corrections.
+    auxiliary_2d(t::Float64, c::Control)
+Return the value of the second derivative of the auxiliary function at time `t` given the control parameter `c`.
 """
-function correction_poly(tf::Float64, correction_vector::Array{Float64,1})
+function auxiliary_2d(t::Float64, c::Control)
+    σ = (c.J0 / c.Jf)^0.25
+    f(t) = 1 / c.T^2 * (
+        60 * (σ - 1) * (t / c.T) -
+        180 * (σ - 1) * (t / c.T)^2 +
+        120 * (σ - 1) * (t / c.T)^3
+    )
+    return piecewise(t, c.T, t -> f(t))
+end
+"""
+    control_function(t::Float64, c::Control)
+Return the control function `J(t)` at time `t` given the control parameter `c`.
+The control function is defined as
+    J(t) = J₀ / b(t)⁴ - b̈(t) / (2 b(t) U N)
+where b(t) is the auxiliary function.
+"""
+function control_function(t::Float64, c::Control)
+    return c.J0 / auxiliary(t, c)^4 - auxiliary_2d(t, c) / (2 * auxiliary(t, c) * c.U * c.N)
+end
+"""
+    correction_polyin(c::Control, correction_vector::Array{Float64,1})
+Given an array of values `[ y₁, ..., yₙ]`, return the Lagrange polynomial that interpolates the points
+`[(0,0) , (t₁, y₁), ..., (tₙ, yₙ), (T, 0)]` at time `t`.
+The function is defined in the interval [0, c.final_time]
+"""
+function correction_polyin(t::Float64, c::Control, correction_vector::Array{Float64,1})
     ys = [0.0; correction_vector; 0.0] # faster than vcat([]...)
-    xs = range(0.0, tf, length=length(ys)) |> collect
-    f(t::Float64) = Lagrange(xs, ys)(t)
-    return t -> piecewise(t, tf, f)
+    xs = range(0.0, c.final_time, length=length(ys)) |> collect
+    return Lagrange(xs, ys)(t)
 end
-correction_poly(c::Control, correction_vector::Array{Float64,1}) = correction_poly(c.T, correction_vector)
+"""
+    control_function(t::Float64, c::Control, correction_vector::Array{Float64,1})
+Return the value of the corrected control function, given a list of coefficients `correction_vector`.
+The vector is used to obtain the Lagrange polynomial and then add it to the control function.
+"""
+function control_function(t::Float64, c::Control, correction_vector::Array{Float64,1})
+    return control_function(t, c) + correction_polyin(t, c, correction_vector)
+end
+
