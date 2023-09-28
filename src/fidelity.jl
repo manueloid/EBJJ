@@ -91,12 +91,12 @@ function Hbh(Jx::Operator, Jz::Operator, c::Control, J::Function)
     return t::Float64 -> -2.0 * J(t) * Jx + c.U * Jz^2
 end
 function Hbh(Jx::Operator, Jz::Operator, c::Control)
-    J(t::Float64) = control_function(c)(t)
+    J(t::Float64) = control_function(t, c)
     return Hbh(Jx, Jz, c, J)
 end
 function Hbh(Jx::Operator, Jz::Operator, c::Control, corrections::Vector{Float64})
     corr = EBJJ.correction_poly(c.T, corrections)
-    J(t::Float64) = control_function(c)(t) + corr(t)
+    J(t::Float64) = control_function(t, c, corr)
     return Hbh(Jx, Jz, c, J)
 end
 

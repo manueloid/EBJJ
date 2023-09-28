@@ -134,7 +134,7 @@ The function is defined in the interval [0, c.final_time]
 """
 function correction_polyin(t::Float64, c::Control, correction_vector::Array{Float64,1})
     ys = [0.0; correction_vector; 0.0] # faster than vcat([]...)
-    xs = range(0.0, c.final_time, length=length(ys)) |> collect
+    xs = range(0.0, c.T, length=length(ys)) |> collect
     return Lagrange(xs, ys)(t)
 end
 """
@@ -143,6 +143,7 @@ Return the value of the corrected control function, given a list of coefficients
 The vector is used to obtain the Lagrange polynomial and then add it to the control function.
 """
 function control_function(t::Float64, c::Control, correction_vector::Array{Float64,1})
-    return control_function(t, c) + correction_polyin(t, c, correction_vector)
+    J_corr(t::Float64) = control_function(t, c) + correction_polyin(t, c, correction_vector)
+    return piecewise(t, c.T, t -> J_corr(t))
 end
 
