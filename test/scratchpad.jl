@@ -83,7 +83,7 @@ Return the final fidelity of the system for each final time in the array `tfs`, 
 It internally evaluates the corrections and the corresponding fidelity, as well as giving the fidelity of the STA protocol.
 The Hamiltonian of the system is defined internally in the for loop.
 """
-function fidelity_tf(tfs::Vector{Float64}, c::Control)
+function fidelity(tfs::Vector{Float64}, c::Control)
     # Definition of the quantities that are not depending on the final time
     q = ConstantQuantity(c)         # Give the initial and final state as well as the operators
     ψ0, ψf = q.ψ0, q.ψf             # Initial and final states
@@ -109,7 +109,7 @@ end
 Return the fidelity for both the STA and eSTA protocols for different number of particle `np` given the system parameters in the `Control` type `c`.
 This function will be used for a fixed final time, given in the `Control` type `c`.
 """
-function fidelity_np(np::Vector{Int64}, c::Control)
+function fidelity(np::Vector{Int64}, c::Control)
     fid_sta = zeros(Float64, length(np)) # Array that will contain the fidelity of the STA protocol
     fid = zeros(Float64, length(np))     # Array that will contain the fidelity of the eSTA protocol
     Threads.@threads for index in eachindex(np)
@@ -129,7 +129,7 @@ function fidelity_np(np::Vector{Int64}, c::Control)
     end
     return fid_sta, fid
 end
-
+using QuantumOptics
 
 J(γ::Int64, N::Int64, U) = U * N / (2.0 * γ)
 N = 10
@@ -140,10 +140,11 @@ U = 0.49;
 tfs = range(0.04, tf, length=10) |> collect
 np = 10:10:20 |> collect
 c = ControlFull(N, J0, Jf, U, tf);
-sta, esta = fidelity_np(np, c)
+sta, esta = fidelity(tfs, c)
 
-plot(np, sta)
-plot!(np, esta)
+using Plots
+plot(tfs, sta)
+plot!(tfs, esta)
 
 plot(tfs[2:7], sta[2:7])
 plot!(tfs[2:7], esta[2:7])

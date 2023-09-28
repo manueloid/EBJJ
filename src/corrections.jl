@@ -56,7 +56,7 @@ I think though that it does not make sense to define general functions.
 I would rather define the $ G_n $ and $ K_n $ integrals in place, so that I do not have to define a lot of functions that I am not going to use.
 =#
 
-bh(z::Float64, h::Float64) = abs(z) <= 1 ? √((1 + z + h) * (1 - z)) : 0.0 # One-liner function that returns the piecewise function bₕ(z)
+bh(z::Float64, h::Float64) = abs(z) <= 1 ? 0.5√((1 + z + h) * (1 - z)) : 0.0 # One-liner function that returns the piecewise function bₕ(z)
 
 """
     gradient(tarray::Array{Float64, 1})
@@ -97,7 +97,7 @@ function corrections(narr::Vector{Int64}, c::Control, λs::Int64=5)
     # Kns = zeros(ComplexF64, λs) # Variable to store the value kn
     v = zeros(ComplexF64, λs) # Variable to store the value of the vector ∑ℜ(Gₙ† ⃗K^⃗)
     Hess = zeros(ComplexF64, (λs, λs))
-    imag_phase_integrand(t::Float64) = U * real(α2(t)) # Integrand of the phase factor
+    imag_phase_integrand(t::Float64) = U / 2 * real(α2(t)) # Integrand of the phase factor
     φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t)[1]
     for n in narr
         lhs(z, t) = exp(im * n * φ(t)) * norm(n, α2(t), α2c(t), h) * herm(n, z / h, α2(t)) * gauss(z / h, α2c(t))
@@ -106,8 +106,8 @@ function corrections(narr::Vector{Int64}, c::Control, λs::Int64=5)
                           h^2 * sd_groundstate(z, α2(t), h)
                       )
         rhs_k(z, t) = -2 * grad(t) * (bh(z, h) * gauss(z / h + 1, α2(t)) + bh(z - h, h) * gauss(z / h - 1, α2(t)))
-        gn = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
-        kn = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
+        gn = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T])[1]
+        kn = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T])[1]
         Hess += kn * kn'
         v += conj(gn) * kn |> real
     end
