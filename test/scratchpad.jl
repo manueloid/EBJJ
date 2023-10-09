@@ -95,7 +95,7 @@ function fidelity(tfs::Vector{Float64}, c::Control)
         tf = tfs[index]
         cl = ControlFull(c.N, c.J0, c.Jf, c.U, tf) # local Control parameter
         J(t) = control_function(t, cl)             # Control function
-        corrs = -corrections([1, 2, 3], cl, 1)         # Corrections
+        corrs = -corrections([2, 4, 6, 8], cl, 1)         # Corrections
         J_corr(t) = control_function(t, cl, corrs) # Corrected control function
         H(t, psi) = -2.0 * J(t) * Jx + c.U * Jz^2
         H_corr(t, psi) = -2.0 * J_corr(t) * Jx + c.U * Jz^2
@@ -121,7 +121,7 @@ function fidelity(np::Vector{Int64}, c::Control)
         fidelity(t, psi) = abs2.(dagger(ψf) * psi) # Function that calculates the fidelity of the system
         Jx, Jz = q.Jx, q.Jz             # Spin operators
         J(t) = control_function(t, cl)             # Control function
-        corrs = corrections([2, 4, 6], cl)         # Corrections
+        corrs = -corrections([2, 4, 6], cl)         # Corrections
         J_corr(t) = control_function(t, cl, corrs) # Corrected control function
         H(t, psi) = -2.0 * J(t) * Jx + c.U * Jz^2
         H_corr(t, psi) = -2.0 * J_corr(t) * Jx + c.U * Jz^2
@@ -134,10 +134,10 @@ using QuantumOptics
 
 J(γ::Int64, N::Int64, U) = U * N / (2.0 * γ)
 N = 10
-U = 0.49
+U = 0.40
 J0 = J(10, N, U);
-Jf = J(100, N, U);
-tf = 1.0
+Jf = J(40, N, U);
+tf = 0.5
 tfs = range(0.06, tf, length=10) |> collect
 np = 10:10:20 |> collect
 c = ControlFull(N, J0, Jf, U, tf);
