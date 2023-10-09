@@ -95,10 +95,11 @@ function fidelity(tfs::Vector{Float64}, c::Control)
         tf = tfs[index]
         cl = ControlFull(c.N, c.J0, c.Jf, c.U, tf) # local Control parameter
         J(t) = control_function(t, cl)             # Control function
-        corrs = corrections([2, 4, 6], cl)         # Corrections
+        corrs = -corrections([1, 2, 3], cl, 1)         # Corrections
         J_corr(t) = control_function(t, cl, corrs) # Corrected control function
         H(t, psi) = -2.0 * J(t) * Jx + c.U * Jz^2
         H_corr(t, psi) = -2.0 * J_corr(t) * Jx + c.U * Jz^2
+        println("calculating fidelity for $tf")
         fid_sta[index] = timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H; fout=fidelity)[2][end]
         fid[index] = timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H_corr; fout=fidelity)[2][end]
     end
@@ -133,15 +134,14 @@ using QuantumOptics
 
 J(γ::Int64, N::Int64, U) = U * N / (2.0 * γ)
 N = 10
-J0 = J(10, N, 49.0);
-Jf = J(20, N, 49.0);
-tf = 0.5
-U = 0.49;
-tfs = range(0.04, tf, length=10) |> collect
+U = 0.49
+J0 = J(10, N, U);
+Jf = J(100, N, U);
+tf = 1.0
+tfs = range(0.06, tf, length=10) |> collect
 np = 10:10:20 |> collect
 c = ControlFull(N, J0, Jf, U, tf);
 sta, esta = fidelity(tfs, c)
-
 using Plots
 plot(tfs, sta)
 plot!(tfs, esta)
