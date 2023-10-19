@@ -47,3 +47,33 @@ function ConstantQuantity(N::Int64, J0::Float64, Jf::Float64, U::Float64)
     return ConstantQuantity(Jz, Jx, ψ0, ψf)
 end
 ConstantQuantity(c::Control) = ConstantQuantity(c.N, c.J0, c.Jf, c.U)
+#=
+I want to define a new struct that will be the combination of the `Control` type and the `ConstantQuantity` type.
+
+By doing that I will be able to use less variables when calling functions. This will make the functions more readable.
+
+I will define a new `ControlQuantity` type.
+=#
+
+"""
+    ControlQuantity(c::Control, q::ConstantQuantity)
+New type that contains both the control parameters of the sysytem as well as the constant quantities like the operators and the ground states.
+This is going to be used to reduce the number of variables passed to the functions.
+"""
+struct ControlQuantity
+    c::Control
+    q::ConstantQuantity
+end
+ControlQuantity(c::Control) = ControlQuantity(c, ConstantQuantity(c))
+"""
+    Error(time_err::Float64, mod_err::Float64)
+New type where I store the errors that I am going to use when calculating the robustness
+Little and useless breakdown of the fields:
+- `time_err`: error that will be used in the calculation of the time noise robustness
+- `mod_err`:  error that will be used in the calculation of the modulation noise robustness
+"""
+struct Error
+    time_err::Float64
+    mod_err::Float64
+end
+Error() = Error(1.e-7, 1.e-7)

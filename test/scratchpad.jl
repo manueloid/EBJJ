@@ -90,43 +90,13 @@ function fidelity(tfs::Vector{Float64}, c::Control)
     Jx, Jz = q.Jx, q.Jz             # Spin operators
     fid_sta = zeros(Float64, length(tfs)) # Array that will contain the fidelity of the STA protocol
     fid = zeros(Float64, length(tfs))     # Array that will contain the fidelity of the eSTA protocol
-    fidelity(t, psi) = abs2.(dagger(ψf) * psi) # Function that calculates the fidelity of the system
     Threads.@threads for index in eachindex(tfs)
         tf = tfs[index]
         cl = ControlFull(c.N, c.J0, c.Jf, c.U, tf) # local Control parameter
-        J(t) = control_function(t, cl)             # Control function
-        corrs = -corrections([2, 4, 6, 8], cl, 1)         # Corrections
-        J_corr(t) = control_function(t, cl, corrs) # Corrected control function
-        H(t, psi) = -2.0 * J(t) * Jx + c.U * Jz^2
-        H_corr(t, psi) = -2.0 * J_corr(t) * Jx + c.U * Jz^2
+        corrs = corrections([2, 4, 6, 8], cl, 1)         # Corrections
         println("calculating fidelity for $tf")
-        fid_sta[index] = timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H; fout=fidelity)[2][end]
-        fid[index] = timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H_corr; fout=fidelity)[2][end]
-    end
-    return fid_sta, fid
-end
-"""
-    fidelity_np(np::Vector{Int64}, c::Control)
-Return the fidelity for both the STA and eSTA protocols for different number of particle `np` given the system parameters in the `Control` type `c`.
-This function will be used for a fixed final time, given in the `Control` type `c`.
-"""
-function fidelity(np::Vector{Int64}, c::Control)
-    fid_sta = zeros(Float64, length(np)) # Array that will contain the fidelity of the STA protocol
-    fid = zeros(Float64, length(np))     # Array that will contain the fidelity of the eSTA protocol
-    Threads.@threads for index in eachindex(np)
-        n = np[index]
-        cl = ControlFull(n, c.J0, c.Jf, c.U, c.T) # local Control parameter
-        q = ConstantQuantity(cl)         # Give the initial and final state as well as the operators
-        ψ0, ψf = q.ψ0, q.ψf             # Initial and final states
-        fidelity(t, psi) = abs2.(dagger(ψf) * psi) # Function that calculates the fidelity of the system
-        Jx, Jz = q.Jx, q.Jz             # Spin operators
-        J(t) = control_function(t, cl)             # Control function
-        corrs = -corrections([2, 4, 6], cl)         # Corrections
-        J_corr(t) = control_function(t, cl, corrs) # Corrected control function
-        H(t, psi) = -2.0 * J(t) * Jx + c.U * Jz^2
-        H_corr(t, psi) = -2.0 * J_corr(t) * Jx + c.U * Jz^2
-        fid_sta[index] = timeevolution.schroedinger_dynamic([0.0, c.T], ψ0, H; fout=fidelity)[2][end]
-        fid[index] = timeevolution.schroedinger_dynamic([0.0, c.T], ψ0, H_corr; fout=fidelity)[2][end]
+        fid_sta[index] = EBJJ.fidelity(q, cl, tf)
+        fid[index] = EBJJ.fidelity(q, cl, tf, corrs)
     end
     return fid_sta, fid
 end

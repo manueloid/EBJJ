@@ -44,6 +44,7 @@ export corrections
 
 include("constant_quantities.jl")
 export ConstantQuantity
+export Error
 
 include("fidelity.jl")
 export fidelity

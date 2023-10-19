@@ -111,7 +111,7 @@ function corrections(narr::Vector{Int64}, c::Control, λs::Int64=5)
         Hess += kn * kn'
         v += conj(gn) * kn |> real
     end
-    return corrections(v, Hess)
+    return -corrections(v, Hess)
 end
 #=
 #### 4.2. $ K_n $
