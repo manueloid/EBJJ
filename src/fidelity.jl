@@ -86,33 +86,26 @@ A lot of memory can be saved by defining the operators and the eigenstates only 
 
 In theory though, this is not a big issue when I want to calculate the evolution of the fidelity as a function of time, but I will do that regardless as it gives me some flexibility.
 =#
+"""
+    fidelity(q::ConstantQuantity, c::Control, tf::Float64)
+Given the parameters of the system, it internally calculates the control function for the STA protocol and return the fidelity at the final time `tf`
+"""
+function fidelity(q::ConstantQuantity, c::Control, tf::Float64)
+    J(t) = control_function(t, c)             # Control function
+    H(t, psi) = -2.0 * J(t) * q.Jx + c.U * q.Jz^2
+    fidelity(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
+    fid = timeevolution.schroedinger_dynamic([0.0, tf], q.ψ0, H; fout=fidelity)[2][end]
+    return fid
+end
+"""
+    fidelity(q::ConstantQuantity, c::Control, tf::Float64, corrs::Vector{Float64})
+Given the parameters of the system and a vector with the eSTA corrections, it internally defines the corresponding control function and evaluate the fidelity at final time `tf`
+"""
+function fidelity(q::ConstantQuantity, c::Control, tf::Float64, corrs::Vector{Float64})
+    J(t) = control_function(t, c, -corrs)             # Control function corrected
+    H(t, psi) = -2.0 * J(t) * q.Jx + c.U * q.Jz^2
+    fidelity(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
+    fid = timeevolution.schroedinger_dynamic([0.0, tf], q.ψ0, H; fout=fidelity)[2][end]
+    return fid
+end
 
-function Hbh(Jx::Operator, Jz::Operator, c::Control, J::Function)
-    return t::Float64 -> -2.0 * J(t) * Jx + c.U * Jz^2
-end
-function Hbh(Jx::Operator, Jz::Operator, c::Control)
-    J(t::Float64) = control_function(t, c)
-    return Hbh(Jx, Jz, c, J)
-end
-function Hbh(Jx::Operator, Jz::Operator, c::Control, corrections::Vector{Float64})
-    corr = EBJJ.correction_poly(c.T, corrections)
-    J(t::Float64) = control_function(t, c, corr)
-    return Hbh(Jx, Jz, c, J)
-end
-
-function fidelity(q::ConstantQuantity, c::Control)
-    ψ0, ψf = q.ψ0, q.ψf
-    Jx, Jz = q.Jx, q.Jz
-    tf = c.T
-    H(t, psi) = Hbh(Jx, Jz, c)(t)
-    fidelity(t, psi) = abs2.(dagger(ψf) * psi)
-    return timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H; fout=fidelity)[2][end]  # Time evolution where the output is not the resulting state but the fidelity. It helps improving the speed of the calculation
-end
-function fidelity(q::ConstantQuantity, c::Control, corrections::Vector{Float64})
-    ψ0, ψf = q.ψ0, q.ψf
-    Jx, Jz = q.Jx, q.Jz
-    tf = c.T
-    H(t, psi) = Hbh(Jx, Jz, c, corrections)(t)
-    fidelity(t, psi) = abs2.(dagger(ψf) * psi)
-    return timeevolution.schroedinger_dynamic([0.0, tf], ψ0, H; fout=fidelity)[2][end]  # Time evolution where the output is not the resulting state but the fidelity. It helps improving the speed of the calculation
-end

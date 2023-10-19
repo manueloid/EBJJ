@@ -37,13 +37,9 @@ export auxiliary
 export control_function
 
 include("wavefunction.jl")
-export gaussian
-export spatial_fourier
 export sd_groundstate
 
 include("corrections.jl")
-export G_factor
-export K_factor
 export corrections
 
 include("constant_quantities.jl")
