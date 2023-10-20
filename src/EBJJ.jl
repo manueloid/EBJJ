@@ -51,5 +51,6 @@ export ModError
 
 include("fidelity.jl")
 export fidelity
+export robustness
 
 end
