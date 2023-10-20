@@ -45,6 +45,9 @@ export corrections
 include("constant_quantities.jl")
 export ConstantQuantity
 export Error
+export AbstractError
+export TimeError
+export ModError
 
 include("fidelity.jl")
 export fidelity

@@ -76,4 +76,29 @@ struct Error
     time_err::Float64
     mod_err::Float64
 end
-Error() = Error(1.e-7, 1.e-7)
+abstract type AbstractError end
+"""
+    TimeError(err::Float64)
+New type that contains only the error that will be used in the calculation of the time noise robustness
+It has only one field `err`
+"""
+struct TimeError <: AbstractError
+    err::Float64
+end
+"""
+    ModError(err::Float64)
+New type that contains only the error that will be used in the calculation of the modulation noise robustness
+It has only one field `err`
+"""
+struct ModError <: AbstractError
+    err::Float64
+end
+
+# Now I am going to overload the `-` function to be able to have the inverse of the `TimeError` and `ModError` types
+import Base: -
+-(e::TimeError) = TimeError(-e.err)
+-(e::ModError) = ModError(-e.err)
+
+Error(δ::TimeError, ε::ModError) = Error(δ.err, ε.err)
+Error(δ::TimeError) = Error(δ.err, 0.0)
+Error(ε::ModError) = Error(0.0, ε.err)
