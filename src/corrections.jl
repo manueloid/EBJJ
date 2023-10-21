@@ -106,13 +106,14 @@ function corrections(narr::AbstractArray{Int64,1}, c::ControlFull, λs::Int64=5)
             h^2 * sd_groundstate(z, α2(t), h)
         )
         rhs_k(z, t) = -grad(t) * (bh(z, h) * gauss(z / h + 1, α2(t)) + bh(z - h, h) * gauss(z / h - 1, α2(t)))
-        gn = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
-        kn = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
+        gn::ComplexF64 = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
+        kn::Vector{ComplexF64} = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
         Hess += kn * kn'
         v += conj(gn) * kn |> real
     end
     return -corrections(v, Hess)
 end
+corrections(n::Int64, c::ControlFull, λs::Int64=5) = corrections(2:2:n, c, λs)
 #=
 #### 4.2. $ K_n $
 

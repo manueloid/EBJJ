@@ -30,7 +30,7 @@ using QuantumOptics
 include("base.jl")
 export Control
 export ControlFull
-export ControlInt
+export ControlSTA
 
 include("polynomials.jl")
 export auxiliary
