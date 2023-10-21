@@ -6,7 +6,7 @@ Similarly to what I have done with the internal Bosonic Josephson junction, I wi
 
 The child types will be:
 - `ControlFull`: for the full Hamiltonian
-- `ControlInt`: for the intermediate Hamiltonian
+- `ControlSTA`: for the intermediate Hamiltonian
 
 Regardless of the Hamiltonian, the `ControlParameter` will contain the following fields:
 - `N`: number of particles
@@ -32,10 +32,10 @@ struct ControlFull <: Control
 end
 
 """
-ControlInt(N::Int64, T::Float64, J0::Float64, Jf::Float64, U::Float64)
+ControlSTA(N::Int64, T::Float64, J0::Float64, Jf::Float64, U::Float64)
 Derived type of ControlParameter for the intermediate Hamiltonian
 """
-struct ControlInt <: Control
+struct ControlSTA <: Control
     N::Int64
     J0::Float64
     Jf::Float64
@@ -65,8 +65,8 @@ I will use multiple dispatch in such a way that the order of the parameters does
 =#
 
 ControlFull() = ControlFull(30, 0.1, 0.05, 0.02, 0.05 * pi)
-ControlInt() = ControlInt(30, 0.1, 0.05, 0.02, 0.05 * pi)
+ControlSTA() = ControlSTA(30, 0.1, 0.05, 0.02, 0.05 * pi)
 ControlFull(N::Int64, T::Float64) = ControlFull(N, 0.1, 0.05, 0.02, T)
 ControlFull(T::Float64, N::Int64) = ControlFull(N, 0.1, 0.05, 0.02, T)
-ControlInt(N::Int64, T::Float64) = ControlInt(N, 0.1, 0.05, 0.02, T)
-ControlInt(T::Float64, N::Int64) = ControlInt(N, 0.1, 0.05, 0.02, T)
+ControlSTA(N::Int64, T::Float64) = ControlSTA(N, 0.1, 0.05, 0.02, T)
+ControlSTA(T::Float64, N::Int64) = ControlSTA(N, 0.1, 0.05, 0.02, T)
