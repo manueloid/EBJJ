@@ -116,5 +116,31 @@ using Plots
 plot(tfs, sta)
 plot!(tfs, esta)
 
-plot(tfs[2:7], sta[2:7])
-plot!(tfs[2:7], esta[2:7])
+"""
+    fidelity(q::ConstantQuantity, c::Control, e::Error)
+Returns the fidelity of the protocol given the parameters of the system in `ConstantQuantity` and `Control` types, and the error `e` in the control function.
+"""
+function fidelity(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
+    ε, δ = e.mod_err, e.time_err
+    J(t) = control_function(t + δ, c) * (1 + ε)
+    H(t, psi) = -2.0 * J(t) * q.Jx + c.U * q.Jz^2
+    fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
+    return timeevolution.schroedinger_dynamic([0.0, c.T], q.ψ0, H; fout=fid)[2][end]
+end
+"""
+    fidelity(q::ConstantQuantity, c::Control, corrs = Vector{Float64}, e::Error = Error(0.0, 0.0))
+Returns the fidelity of the eSTA approach when the corrections have already been calculated, given the parameters of the system and an error `e`
+"""
+function fidelity2(q::ConstantQuantity, c::ControlFull, e::Error=Error(0.0, 0.0))
+    ε, δ = e.mod_err, e.time_err
+    corrs = corrections(2, c, 1)
+    J(t) = control_function(t + δ, c, corrs) * (1 + ε)
+    H(t, psi) = -2.0 * J(t) * q.Jx + c.U * q.Jz^2
+    fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
+    return timeevolution.schroedinger_dynamic([0.0, c.T], q.ψ0, H; fout=fid)[2][end]
+end
+
+function test(q::ConstantQuantity, c::ControlFull)
+    corrs = corrections(2, c, 1)
+    return fidelity(q, c, corrs)
+end

@@ -100,7 +100,7 @@ In this way I do not have to define multiple fidelities functions, one is enough
     fidelity(q::ConstantQuantity, c::Control, e::Error)
 Returns the fidelity of the protocol given the parameters of the system in `ConstantQuantity` and `Control` types, and the error `e` in the control function.
 """
-function fidelity(q::ConstantQuantity, c::Control, e::Error=Error(0.0, 0.0))
+function fidelity(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
     ε, δ = e.mod_err, e.time_err
     J(t) = control_function(t + δ, c) * (1 + ε)
     H(t, psi) = -2.0 * J(t) * q.Jx + c.U * q.Jz^2
@@ -111,16 +111,26 @@ end
     fidelity(q::ConstantQuantity, c::Control, corrs = Vector{Float64}, e::Error = Error(0.0, 0.0))
 Returns the fidelity of the eSTA approach when the corrections have already been calculated, given the parameters of the system and an error `e`
 """
-function fidelity(q::ConstantQuantity, c::Control, corrs::Vector{Float64}, e::Error=Error(0.0, 0.0))
+function fidelity(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error=Error(0.0, 0.0))
     ε, δ = e.mod_err, e.time_err
     J(t) = control_function(t + δ, c, corrs) * (1 + ε)
     H(t, psi) = -2.0 * J(t) * q.Jx + c.U * q.Jz^2
     fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
     return timeevolution.schroedinger_dynamic([0.0, c.T], q.ψ0, H; fout=fid)[2][end]
 end
+fidelity(q::ConstantQuantity, c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity(q, c, corrections(c), e)
+
 fidelity(q::ConstantQuantity, c::Control, δ::TimeError) = fidelity(q, c, Error(δ.err, 0.0))
 fidelity(q::ConstantQuantity, c::Control, ε::ModError) = fidelity(q, c, Error(0.0, ε.err))
 fidelity(q::ConstantQuantity, c::Control, corrs::Vector{Float64}, δ::TimeError) = fidelity(q, c, corrs, Error(δ.err, 0.0))
 fidelity(q::ConstantQuantity, c::Control, corrs::Vector{Float64}, ε::ModError) = fidelity(q, c, corrs, Error(0.0, ε.err))
-robustness(q, c, t::AbstractError) = (fidelity(q, c, t) - fidelity(q, c, -t)) / (2 * t.err)
-robustness(q, c, corrs, t::AbstractError) = (fidelity(q, c, corrs, t) - fidelity(q, c, corrs, -t)) / (2 * t.err)
+robustness(q::ConstantQuantity, c::ControlSTA, t::AbstractError) = (fidelity(q, c, t) - fidelity(q, c, -t)) / (2 * t.err)
+"""
+    robustness(q::ConstantQuantity, c::ControlFull, t::AbstractError)
+Returns the robustness of the eSTA approach given the parameters of the system and an error `t` (it needs to be either a `TimeError` or a `ModError`).
+This function is needed so that I do not have to evaluate the corrections twice.
+"""
+function robustness(q::ConstantQuantity, c::ControlFull, t::AbstractError)
+    corrs = corrections(c)
+    return (fidelity(q, c, corrs, t) - fidelity(q, c, corrs, -t)) / (2 * t.err)
+end

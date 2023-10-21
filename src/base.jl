@@ -21,7 +21,7 @@ Regardless of the Hamiltonian, the `ControlParameter` will contain the following
 abstract type Control end
 """
 ControlFull(N::Int64, J0::Float64, Jf::Float64, U::Float64, T::Float64)
-Derived type of ControlParameter for the full Hamiltonian
+Control Parameter for the eSTA protocol, it also contains the parameters that characterize the protocol like the number of corrections we want as well as the number of maximum states we are interested in
 """
 struct ControlFull <: Control
     N::Int64
@@ -29,11 +29,13 @@ struct ControlFull <: Control
     Jf::Float64
     U::Float64
     T::Float64
+    nλ::Int64
+    states::AbstractVector{Int64}
 end
 
 """
 ControlSTA(N::Int64, T::Float64, J0::Float64, Jf::Float64, U::Float64)
-Derived type of ControlParameter for the intermediate Hamiltonian
+Derived type of ControlParameter for the STA protocol
 """
 struct ControlSTA <: Control
     N::Int64
@@ -64,9 +66,10 @@ From the paper, the constant values are:
 I will use multiple dispatch in such a way that the order of the parameters does not matter.
 =#
 
-ControlFull() = ControlFull(30, 0.1, 0.05, 0.02, 0.05 * pi)
+ControlFull() = ControlFull(30, 0.1, 0.05, 0.02, 0.05 * pi, 1, 2:2)
+ControlFull(c::ControlFull, states::AbstractVector{Int64}) = ControlFull(c.N, c.J0, c.Jf, c.U, c.T, c.nλ, states)
 ControlSTA() = ControlSTA(30, 0.1, 0.05, 0.02, 0.05 * pi)
-ControlFull(N::Int64, T::Float64) = ControlFull(N, 0.1, 0.05, 0.02, T)
-ControlFull(T::Float64, N::Int64) = ControlFull(N, 0.1, 0.05, 0.02, T)
+ControlFull(N::Int64, T::Float64) = ControlFull(N, 0.1, 0.05, 0.02, T, 1, 2:2)
+ControlFull(T::Float64, N::Int64) = ControlFull(N, 0.1, 0.05, 0.02, T, 1, 2:2)
 ControlSTA(N::Int64, T::Float64) = ControlSTA(N, 0.1, 0.05, 0.02, T)
 ControlSTA(T::Float64, N::Int64) = ControlSTA(N, 0.1, 0.05, 0.02, T)

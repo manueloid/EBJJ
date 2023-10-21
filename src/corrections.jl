@@ -81,8 +81,8 @@ function corrections(v::Vector{ComplexF64}, hessian::Matrix{ComplexF64})
     return num / den |> real
 end
 
-function corrections(narr::AbstractArray{Int64,1}, c::ControlFull, λs::Int64=5)
-    J0, N, U = c.J0, c.N, c.U
+function corrections(c::ControlFull)
+    J0, N, U, λs, narr = c.J0, c.N, c.U, c.nλ, c.states
     h = 2.0 / N
     # Definition of the auxiliary functions
     b(t) = auxiliary(t, c)
