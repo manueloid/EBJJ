@@ -99,7 +99,8 @@ function corrections(c::ControlFull)
     Hess = zeros(ComplexF64, (λs, λs))
     imag_phase_integrand(t::Float64) = 2U * real(α2(t)) # Integrand of the phase factor
     φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t, atol=1e-7)[1]
-    for n in narr
+    Threads.@threads for i in eachindex(narr)
+        n = narr[i]
         lhs(z, t) = exp(im * n * φ(t)) * norm(n, α2(t), α2c(t), h) * herm(n, z / h, α2(t)) * gauss(z / h, α2c(t))
         rhs_g(z, t) = -J(t) * (
             bh(z, h) * gauss(z / h + 1, α2(t)) + bh(z - h, h) * gauss(z / h - 1, α2(t)) -
