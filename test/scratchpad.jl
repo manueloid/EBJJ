@@ -116,7 +116,7 @@ t0, tf = 0.1, 0.9
 tfs = range(t0, tf, length=19) 
 c = ControlFull(N, J0, Jf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
-corrections(c)
+corr = corrections(c)
 
 using Plots
 plot(tfs, esta, label="esta")

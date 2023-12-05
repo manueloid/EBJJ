@@ -95,10 +95,9 @@ function corrections(c::ControlFull)
     α2c(t::Float64) = 1 / b(t)^2 * sqrt(J0 * N / (2U)) + im * db(t) / (2U * b(t))  # Parameter of the Gaussian term
     # Gns = 0.0 + 0.0im           # Variable to store the values gn
     # Kns = zeros(ComplexF64, λs) # Variable to store the value kn
-    v = zeros(ComplexF64, λs) # Variable to store the value of the vector ∑ℜ(Gₙ† ⃗K^⃗)
-    Hess = zeros(ComplexF64, (λs, λs))
     imag_phase_integrand(t::Float64) = 2U * real(α2(t)) # Integrand of the phase factor
     φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t, atol=1e-7)[1]
+    corrections = Array{Corrs,1}(undef, length(narr))
     Threads.@threads for i in eachindex(narr)
         n = narr[i]
         lhs(z, t) = exp(im * n * φ(t)) * norm(n, α2(t), α2c(t), h) * herm(n, z / h, α2(t)) * gauss(z / h, α2c(t))
@@ -109,10 +108,9 @@ function corrections(c::ControlFull)
         rhs_k(z, t) = -grad(t) * (bh(z, h) * gauss(z / h + 1, α2(t)) + bh(z - h, h) * gauss(z / h - 1, α2(t)))
         gn::ComplexF64 = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
         kn::Vector{ComplexF64} = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
-        Hess += kn * kn'
-        v += conj(gn) * kn |> real
+        corrections[i] = Corrs(n,gn, kn)
     end
-    return corrections(v, Hess)
+    return corrections
 end
 corrections(n::Int64, c::ControlFull, λs::Int64=5) = corrections(2:2:n, c, λs)
 #=
