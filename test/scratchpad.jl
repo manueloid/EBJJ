@@ -133,5 +133,46 @@ corr = kngn(c, tfs)
 # corr[i][n] is the correction for the nth state at the final time tfs[i]
 
 using Plots
-plot(tfs, esta, label="esta")
-plot!(tfs, sta, label="sta")
+scatter()
+for  i in eachindex(tfs)
+    hess, vec = EBJJ.Hess(corr[i]), EBJJ.v(corr[i]) # Value of the hessian and the vector at the first final time, for different states n
+    push!(hess, sum(hess))
+    hessian_plot = scatter!(
+        ones(length(hess))*tfs[i],
+        [h[1]|>real for h in hess],
+        legend=false,
+   )
+end
+plot!()
+scatter()
+final_vec = []
+final_hess = []
+for  i in eachindex(tfs)
+    hess, vec = EBJJ.Hess(corr[i]), EBJJ.v(corr[i]) # Value of the hessian and the vector at the first final time, for different states n
+    push!(final_vec, sum(vec))
+    push!(final_hess, sum(hess))
+    push!(vec, sum(vec))
+    hessian_plot = scatter!(
+        ones(length(vec))*tfs[i],
+        [h[1]|>real for h in vec],
+        legend=false,
+   )
+end
+plot!()
+
+using LinearAlgebra
+for  i in eachindex(tfs)
+    hess, vec = EBJJ.Hess(corr[i]), EBJJ.v(corr[i]) # Value of the hessian and the vector at the first final time, for different states n
+    num = 
+    hessian_plot = scatter!(
+        ones(length(vec))*tfs[i],
+        [h[1]|>real for h in vec],
+        legend=false,
+   )
+end
+plot!()
+
+plot(tfs, reduce(vcat, final_vec), label="vec")
+plot!(tfs, reduce(vcat, final_hess|>real), label="hess")
+
+
