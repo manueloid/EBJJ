@@ -105,9 +105,22 @@ function robustnesses(c::Control, tfs::AbstractVector{Float64}, ε::AbstractErro
     end
     return rob
 end
+"""
+    corrections(c::Control, tfs::AbstractVector{Float64})
+Return the value of both the kn and the gn for a control object `c` at the final times `tfs` for different values of the final time in the array `tfs`
+"""
+function kngn(c::Control, tfs::AbstractVector{Float64})
+    corrs = []
+    Threads.@threads for index in eachindex(tfs)
+        cl = EBJJ.c_time(c, tfs[index])
+        push!(corrs, EBJJ.corrections(cl))
+    end
+    return corrs
+end
+
 
 max_state = 12
-nλ = 5
+nλ = 1
 U = 0.06
 N = 10
 J0 = 0.245
@@ -116,7 +129,8 @@ t0, tf = 0.1, 0.9
 tfs = range(t0, tf, length=19) 
 c = ControlFull(N, J0, Jf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
-corr = corrections(c)
+corr = kngn(c, tfs)
+# corr[i][n] is the correction for the nth state at the final time tfs[i]
 
 using Plots
 plot(tfs, esta, label="esta")

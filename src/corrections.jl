@@ -108,7 +108,7 @@ function corrections(c::ControlFull)
         rhs_k(z, t) = -grad(t) * (bh(z, h) * gauss(z / h + 1, α2(t)) + bh(z - h, h) * gauss(z / h - 1, α2(t)))
         gn::ComplexF64 = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
         kn::Vector{ComplexF64} = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]), [-1.0e1, 0.0], [1.0e1, c.T], atol=1e-7)[1]
-        corrections[i] = Corrs(n,gn, kn)
+        corrections[i] = Corrs(n,kn, gn)
     end
     return corrections
 end

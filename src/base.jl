@@ -84,6 +84,5 @@ struct Corrs
 end
 Hess(c::Corrs) = c.kn * c.kn'
 v(c::Corrs) = conj(c.gn) * c.kn |> real
-Hess(cs::AbstractArray{Corrs, 1}) = [Hess(c) for c in cs] |> sum
-v(cs::AbstractArray{Corrs, 1}) = [v(c) for c in cs] |> sum
-
+Hess(cs::AbstractArray{Corrs, 1}) = [Hess(c) for c in cs] 
+v(cs::AbstractArray{Corrs, 1}) = [v(c) for c in cs]
