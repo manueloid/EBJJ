@@ -78,70 +78,47 @@ I will lay out everything inside the body of the function, hoping that I can get
 =#
 
 
+using EBJJ 
 """
-    fidelity_tf(tfs::Vector{Float64}, c::Control)
-Return the final fidelity of the system for each final time in the array `tfs`, given the system parameters in the `Control` type `c`.
-It internally evaluates the corrections and the corresponding fidelity, as well as giving the fidelity of the STA protocol.
-The Hamiltonian of the system is defined internally in the for loop.
+    fidelities(c::Control, tfs::AbstractVector{Float64})
+Calculate the fidelity of the control object `c` at the final times `tfs` for different values of the final time
 """
-function fidelity(tfs::Vector{Float64}, c::Control)
-    # Definition of the quantities that are not depending on the final time
-    q = ConstantQuantity(c)         # Give the initial and final state as well as the operators
-    ψ0, ψf = q.ψ0, q.ψf             # Initial and final states
-    Jx, Jz = q.Jx, q.Jz             # Spin operators
-    fid_sta = zeros(Float64, length(tfs)) # Array that will contain the fidelity of the STA protocol
-    fid = zeros(Float64, length(tfs))     # Array that will contain the fidelity of the eSTA protocol
+function fidelities(c::Control, tfs::AbstractVector{Float64})
+    q = ConstantQuantity(c)
+    fid = zeros(length(tfs))
     Threads.@threads for index in eachindex(tfs)
-        tf = tfs[index]
-        cl = ControlFull(c.N, c.J0, c.Jf, c.U, tf) # local Control parameter
-        corrs = corrections([2, 4, 6, 8], cl, 1)         # Corrections
-        println("calculating fidelity for $tf")
-        fid_sta[index] = EBJJ.fidelity(q, cl, tf)
-        fid[index] = EBJJ.fidelity(q, cl, tf, corrs)
+        cl = EBJJ.c_time(c, tfs[index])
+        fid[index] = EBJJ.fidelity(q, cl)
     end
-    return fid_sta, fid
+    return fid
 end
-using QuantumOptics
+"""
+    robustnesses(c::Control, tfs::AbstractVector{Float64}, ε::AbstractError)
+    Calculate the robustness of the control object `c` at the final times `tfs` for different values of the final time in the array `tfs`
+"""
+function robustnesses(c::Control, tfs::AbstractVector{Float64}, ε::AbstractError)
+    q = ConstantQuantity(c)
+    rob = zeros(length(tfs))
+    Threads.@threads for index in eachindex(tfs)
+        cl = EBJJ.c_time(c, tfs[index])
+        rob[index] = EBJJ.robustness(q, cl, ε)
+    end
+    return rob
+end
 
-J(γ::Int64, N::Int64, U) = U * N / (2.0 * γ)
+max_state = 12
+nλ = 5
+U = 0.06
 N = 10
-U = 0.40
-J0 = J(10, N, U);
-Jf = J(40, N, U);
-tf = 0.5
-tfs = range(0.06, tf, length=10) |> collect
-np = 10:10:20 |> collect
-c = ControlFull(N, J0, Jf, U, tf);
-sta, esta = fidelity(tfs, c)
+J0 = 0.245
+Jf = 0.1225
+t0, tf = 0.1, 0.9
+tfs = range(t0, tf, length=19) 
+c = ControlFull(N, J0, Jf, U, tf, nλ, 2:2:max_state);
+cs = ControlSTA(c);
+δ, ε = TimeError(1e-7), ModError(1e-7)
+esta = fidelities(c, tfs)
+sta = fidelities(cs, tfs)
 using Plots
-plot(tfs, sta)
-plot!(tfs, esta)
-
-"""
-    fidelity(q::ConstantQuantity, c::Control, e::Error)
-Returns the fidelity of the protocol given the parameters of the system in `ConstantQuantity` and `Control` types, and the error `e` in the control function.
-"""
-function fidelity(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
-    ε, δ = e.mod_err, e.time_err
-    J(t) = control_function(t + δ, c) * (1 + ε)
-    H(t, psi) = -2.0 * J(t) * q.Jx + c.U * q.Jz^2
-    fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
-    return timeevolution.schroedinger_dynamic([0.0, c.T], q.ψ0, H; fout=fid)[2][end]
-end
-"""
-    fidelity(q::ConstantQuantity, c::Control, corrs = Vector{Float64}, e::Error = Error(0.0, 0.0))
-Returns the fidelity of the eSTA approach when the corrections have already been calculated, given the parameters of the system and an error `e`
-"""
-function fidelity2(q::ConstantQuantity, c::ControlFull, e::Error=Error(0.0, 0.0))
-    ε, δ = e.mod_err, e.time_err
-    corrs = corrections(2, c, 1)
-    J(t) = control_function(t + δ, c, corrs) * (1 + ε)
-    H(t, psi) = -2.0 * J(t) * q.Jx + c.U * q.Jz^2
-    fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
-    return timeevolution.schroedinger_dynamic([0.0, c.T], q.ψ0, H; fout=fid)[2][end]
-end
-
-function test(q::ConstantQuantity, c::ControlFull)
-    corrs = corrections(2, c, 1)
-    return fidelity(q, c, corrs)
-end
+plot(tfs, esta, label="esta")
+plot!(tfs, sta, label="sta")

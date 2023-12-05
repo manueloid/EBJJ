@@ -91,8 +91,8 @@ function corrections(c::ControlFull)
     J(t) = control_function(t, c)
     gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
     grad(t::Float64) = [g(t) for g in gradient_functions]
-    α2(t::Float64) = 1 / b(t)^2 * sqrt(8J0 * N / (U)) - 2im * db(t) / (U * b(t))  # Parameter of the Gaussian term
-    α2c(t::Float64) = 1 / b(t)^2 * sqrt(8J0 * N / (U)) + 2im * db(t) / (U * b(t)) # Complex conjugate of α2
+    α2(t::Float64) = 1 / b(t)^2 * sqrt(J0 * N / (2U)) - im * db(t) / (2U * b(t))  # Parameter of the Gaussian term
+    α2c(t::Float64) = 1 / b(t)^2 * sqrt(J0 * N / (2U)) + im * db(t) / (2U * b(t))  # Parameter of the Gaussian term
     # Gns = 0.0 + 0.0im           # Variable to store the values gn
     # Kns = zeros(ComplexF64, λs) # Variable to store the value kn
     v = zeros(ComplexF64, λs) # Variable to store the value of the vector ∑ℜ(Gₙ† ⃗K^⃗)
@@ -112,7 +112,7 @@ function corrections(c::ControlFull)
         Hess += kn * kn'
         v += conj(gn) * kn |> real
     end
-    return -corrections(v, Hess)
+    return corrections(v, Hess)
 end
 corrections(n::Int64, c::ControlFull, λs::Int64=5) = corrections(2:2:n, c, λs)
 #=

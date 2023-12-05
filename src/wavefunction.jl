@@ -131,8 +131,7 @@ The function also takes the parameter `h`, for later use.
 The function takes two complex numbers as input to reduce the computational cost.
 """
 function norm(n::Int64, α2::ComplexF64, α2c::ComplexF64, h::Float64)
-    r = sqrt(real(α2))
-    return (r^2 / pi)^(1 / 2) * (1 / sqrt(2^n * factorial(n))) * ((-im)^n / h) * (1 / abs(α2)) * (α2 / α2c)^(n / 2)
+    return (real(α2) / pi)^(1 / 2) * (1 / sqrt(2^n * factorial(n))) * ((-im)^n / h) * (1 / abs(α2)) * (α2 / α2c)^(n / 2)
 end
 """
     gauss(z::Float64, α2::ComplexF64)
