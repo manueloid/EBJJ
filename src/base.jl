@@ -76,3 +76,14 @@ ControlSTA(N::Int64, T::Float64) = ControlSTA(N, 0.1, 0.05, 0.02, T)
 ControlSTA(T::Float64, N::Int64) = ControlSTA(N, 0.1, 0.05, 0.02, T)
 c_time(c::ControlFull, t::Float64) = ControlFull(c.N, c.J0, c.Jf, c.U, t, c.nλ, c.states)
 c_time(c::ControlSTA, t::Float64) = ControlSTA(c.N, c.J0, c.Jf, c.U, t)
+
+struct Corrs
+    n::Int64
+    kn::AbstractVector{ComplexF64}
+    gn::ComplexF64
+end
+Hess(c::Corrs) = c.kn * c.kn'
+v(c::Corrs) = conj(c.gn) * c.kn |> real
+Hess(cs::AbstractArray{Corrs, 1}) = [Hess(c) for c in cs] |> sum
+v(cs::AbstractArray{Corrs, 1}) = [v(c) for c in cs] |> sum
+

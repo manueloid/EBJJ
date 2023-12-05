@@ -31,6 +31,7 @@ include("base.jl")
 export Control
 export ControlFull
 export ControlSTA
+export Corrs
 
 include("polynomials.jl")
 export auxiliary
