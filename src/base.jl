@@ -77,7 +77,12 @@ ControlSTA(T::Float64, N::Int64) = ControlSTA(N, 0.1, 0.05, 0.02, T)
 c_time(c::ControlFull, t::Float64) = ControlFull(c.N, c.J0, c.Jf, c.U, t, c.nλ, c.states)
 c_time(c::ControlSTA, t::Float64) = ControlSTA(c.N, c.J0, c.Jf, c.U, t)
 
+"""
+    Corrs(c::Control,n::Int64, kn::AbstractVector{ComplexF64}, gn::ComplexF64)
+This struct contains the value of the corrections kn and gn for a given control object `c`, calculated for a given state `n`.
+"""
 struct Corrs
+    c::Control
     n::Int64
     kn::AbstractVector{ComplexF64}
     gn::ComplexF64

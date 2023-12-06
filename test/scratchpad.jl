@@ -119,8 +119,9 @@ function kngn(c::Control, tfs::AbstractVector{Float64})
 end
 
 
+using EBJJ
 max_state = 12
-nλ = 1
+nλ = 3
 U = 0.06
 N = 10
 J0 = 0.245
@@ -129,7 +130,7 @@ t0, tf = 0.1, 0.9
 tfs = range(t0, tf, length=19) 
 c = ControlFull(N, J0, Jf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
-corr = kngn(c, tfs)
+corr = corrections(c)
 # corr[i][n] is the correction for the nth state at the final time tfs[i]
 
 using Plots
