@@ -70,7 +70,7 @@ function gradient_int(tarray::Array{Float64,1})
     for i in 1:ncoeffs
         yarr = zeros(ncoeffs + 2)
         yarr[i+1] = 1.0
-        gradient[i] = t::Float64 -> Lagrange(tarray, yarr)(t)
+        gradient[i] = t::Float64 -> t<0 ? 0.0 : t>1.0 ? 0.0 : Lagrange(tarray, yarr)(t)
     end
     return gradient
 end

@@ -136,7 +136,7 @@ end
 """
     gauss(z::Float64, α2::ComplexF64)
 Return the Gaussian part of the wave function at a given position for a general complex number `α2`.
-The idea is to pass the variable `z/h` when calling the function, so there is no need to pass the value `h` in this functio
+The idea is to pass the variable `z/h` when calling the function, so there is no need to pass the value `h` in this function.
 For the complex conjugate of this function, is just enough to pass the complex conjugate of the parameter `α2`.
 """
 function gauss(z::Float64, α2::ComplexF64)
@@ -144,7 +144,7 @@ function gauss(z::Float64, α2::ComplexF64)
 end
 """
     herm(n::Int64, z::Float64, α2::ComplexF64)
-Return the valuee of the Hermite polynomial for excitation number `n` at the position `z` for a general complex number `α2`.
+Return the value of the Hermite polynomial for excitation number `n` at position `z` for a general complex number `α2`.
 Again, no need to pass the value `h` here, pass the value `z/h` when calling the function.
 """
 function herm(n::Int64, z::Float64, α2::ComplexF64)
