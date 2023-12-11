@@ -75,10 +75,15 @@ function gradient_int(tarray::Array{Float64,1})
     return gradient
 end
 
-function corrections(v::Vector{ComplexF64}, hessian::Matrix{ComplexF64})
+function corrections(v::Vector{Float64}, hessian::Matrix{ComplexF64})
     num = v * LinearAlgebra.norm(v)^2
     den = v' * hessian * v
     return num / den |> real
+end
+function corrections(corr::AbstractArray{Corrs,1})
+    hess = EBJJ.Hess(corr) |> sum
+    v = EBJJ.v(corr) |> sum
+    return -corrections(v, hess)
 end
 
 function corrections(c::ControlFull)
@@ -114,10 +119,10 @@ function corrections(c::ControlFull)
                                   bh(z - h, h) * gauss(z / h - 1, α2(t))
                                  )
         gn::ComplexF64 = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]),
-                                   [-1.0e1, 0.0], [1.0e1, c.T],
+                                   [-15., 0.0], [15., c.T],
                                    atol=1e-7)[1]
         kn::Vector{ComplexF64} = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]),
-                                           [-1.0e1, 0.0], [1.0e1, c.T],
+                                           [-15., 0.0], [15., c.T],
                                            atol=1e-7)[1]
         corrections[i] = Corrs(c,n,kn, gn)
     end

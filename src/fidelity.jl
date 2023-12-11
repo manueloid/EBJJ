@@ -118,7 +118,7 @@ function fidelity(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e
     fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
     return timeevolution.schroedinger_dynamic([0.0, c.T], q.ψ0, H; fout=fid)[2][end]
 end
-fidelity(q::ConstantQuantity, c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity(q, c, corrections(c), e)
+fidelity(q::ConstantQuantity, c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity(q, c, corrections(corrections(c)), e)
 
 fidelity(q::ConstantQuantity, c::Control, δ::TimeError) = fidelity(q, c, Error(δ.err, 0.0))
 fidelity(q::ConstantQuantity, c::Control, ε::ModError) = fidelity(q, c, Error(0.0, ε.err))

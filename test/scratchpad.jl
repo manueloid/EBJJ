@@ -120,20 +120,23 @@ end
 
 
 using EBJJ
-max_state = 12
-nλ = 3
-U = 0.06
+max_state = 2
+nλ = 5
+U = 0.1
 N = 10
 J0 = 0.245
 Jf = 0.1225
-t0, tf = 0.1, 0.9
+t0, tf = 0.1, 4.
 tfs = range(t0, tf, length=19) 
 c = ControlFull(N, J0, Jf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
-corr = corrections(c)
-# corr[i][n] is the correction for the nth state at the final time tfs[i]
+fid_esta = fidelities(c, tfs)
+fid_sta = fidelities(cs, tfs)
 
 using Plots
+plot(tfs, fid_esta, label="eSTA")
+plot!(tfs, fid_sta, label="STA")
+
 scatter()
 for  i in eachindex(tfs)
     hess, vec = EBJJ.Hess(corr[i]), EBJJ.v(corr[i]) # Value of the hessian and the vector at the first final time, for different states n
