@@ -46,8 +46,11 @@ end
 #=
 # Notation about Λ
 
-We have that $ \Lambda = UN/2 $
+We have that $ \Lambda = UN/2 $, so I am going to define a function that returns said value given a `Control` object.
 =#
+
+Λ(N::Int64, U::Float64) = U * N / 2
+Λ(c::Control) = Λ(c.N, c.U)
 
 """
     Corrs(c::Control,n::Int64, kn::AbstractVector{ComplexF64}, gn::ComplexF64)

@@ -12,6 +12,15 @@ In particular, I need to basically calculate two types of integrals:
 2. $ K_n = \int_0^{t_f} dt \langle \chi_n | \Nabla H | \chi_0 \rangle $
 
 The definitions of the integrals will be given in the relevant sections.
+
+The argument of the gaussian term is given by 
+\begin{align} % Arguments of the Gaussian and Hermite polynomial
+	f^2 (\tau)=
+		\sqrt{\frac{\tilde{\Omega}_0}{2\Lambda}}\frac{1}{h b^2}-
+		\frac{i \dot{b}}{2 \Lambda h b} \\
+	g(\tau) =  \sqrt[4]{\frac{\tilde{\Omega}_0}{2\Lambda}}\frac{1}{hb} ~.
+	\label{eq:ArgumentsOfGaussianAndHermitePolynomial}
+\end{align}
 =#
 #=
 ### 1. $ G_n $
@@ -56,7 +65,7 @@ I think though that it does not make sense to define general functions.
 I would rather define the $ G_n $ and $ K_n $ integrals in place, so that I do not have to define a lot of functions that I am not going to use.
 =#
 
-bh(z::Float64, h::Float64) = abs(z) <= 1 ? √((1 + z + h) * (1 - z)) : 0.0 # One-liner function that returns the piecewise function bₕ(z)
+bh(z::Float64, h::Float64) = abs(z) <= 1 ? 0.5 * √((1 + z + h) * (1 - z)) : 0.0 # One-liner function that returns the piecewise function bₕ(z)
 
 """
     gradient(tarray::Array{Float64, 1})
@@ -87,20 +96,19 @@ function corrections(corr::AbstractArray{Corrs,1})
 end
 
 function corrections(c::ControlFull)
-    J0, N, U, λs, narr = c.J0, c.N, c.U, c.nλ, c.states
-    h = 2.0 / N
+    h, Λ, λs, narr = 2.0/c.N, Λ(c), c.nλ, c.states
     # Definition of the auxiliary functions
     b(t) = auxiliary(t, c)
     db(t) = EBJJ.auxiliary_1d(t, c)
     d2b(t) = EBJJ.auxiliary_2d(t, c)
-    J(t) = control_function(t, c)
+    Ω(t) = control_function(t, c)
     gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
     grad(t::Float64) = [g(t) for g in gradient_functions]
-    α2(t::Float64) = 1 / b(t)^2 * sqrt(J0 * N / (2U)) - im * db(t) / (2U * b(t))  # Parameter of the Gaussian term
-    α2c(t::Float64) = 1 / b(t)^2 * sqrt(J0 * N / (2U)) + im * db(t) / (2U * b(t))  # Parameter of the Gaussian term
+    α2(t::Float64) = sqrt(1/(2Λ)) * 1/(h * b(t)^2) - im * db(t) / (2Λ * h * b(t))
+    α2c(t::Float64) = sqrt(1/(2Λ)) * 1/(h * b(t)) + im * db(t) / (2Λ * h * b(t))
     # Gns = 0.0 + 0.0im           # Variable to store the values gn
     # Kns = zeros(ComplexF64, λs) # Variable to store the value kn
-    imag_phase_integrand(t::Float64) = 2U * real(α2(t)) # Integrand of the phase factor
+    imag_phase_integrand(t::Float64) = 2Λ * h * real(α2(t)) # Integrand of the phase factor
     φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t, atol=1e-7)[1]
     corrections = Array{Corrs,1}(undef, length(narr))
     Threads.@threads for i in eachindex(narr)
@@ -109,10 +117,10 @@ function corrections(c::ControlFull)
             norm(n, α2(t), α2c(t), h) * 
             herm(n, z / h, α2(t)) * 
             gauss(z / h, α2c(t))
-        rhs_g(z, t) = -J(t) * (
+        rhs_g(z, t) = -Ω(t) * (
                 bh(z, h) * gauss(z / h + 1, α2(t)) +
                 bh(z - h, h) * gauss(z / h - 1, α2(t)) -
-                h^2 * sd_groundstate(z, α2(t), h)
+                h^2 / 2.0 * sd_groundstate(z, α2(t), h)
             )
         rhs_k(z, t) = -grad(t) * (
                                   bh(z, h) * gauss(z / h + 1, α2(t)) + 

@@ -32,6 +32,7 @@ export Control
 export ControlFull
 export ControlSTA
 export Corrs
+export Λ
 
 include("polynomials.jl")
 export auxiliary

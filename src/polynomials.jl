@@ -87,7 +87,7 @@ Return the value of the auxiliary function at time `t` given the control paramet
 It internally defines the parameter `σ` as `σ = (J0 / Jf)^0.25 givent the control parameter `c`.
 """
 function auxiliary(t::Float64, c::Control)
-    σ = (c.J0 / c.Jf)^0.25 # calculate the value of σ, given the boundary conditions
+    σ = (1/c.Ωf)^0.25 # calculate the value of σ, given the boundary conditions
     return auxiliary(t, c.T, σ) # return the value of the auxiliary function
 end
 """
@@ -95,7 +95,7 @@ end
 Return the value of the first derivative of the auxiliary function at time `t` given the control parameter `c`.
 """
 function auxiliary_1d(t::Float64, c::Control)
-    σ = (c.J0 / c.Jf)^0.25
+    σ = (1/c.Ωf)^0.25 # calculate the value of σ, given the boundary conditions
     f(t) = 1 / c.T * (
         30 * (σ - 1) * (t / c.T)^2 -
         60 * (σ - 1) * (t / c.T)^3 +
@@ -108,7 +108,7 @@ end
 Return the value of the second derivative of the auxiliary function at time `t` given the control parameter `c`.
 """
 function auxiliary_2d(t::Float64, c::Control)
-    σ = (c.J0 / c.Jf)^0.25
+    σ = (1/c.Ωf)^0.25 # calculate the value of σ, given the boundary conditions
     f(t) = 1 / c.T^2 * (
         60 * (σ - 1) * (t / c.T) -
         180 * (σ - 1) * (t / c.T)^2 +
@@ -124,7 +124,7 @@ The control function is defined as
 where b(t) is the auxiliary function.
 """
 function control_function(t::Float64, c::Control)
-    return c.J0 / auxiliary(t, c)^4 - auxiliary_2d(t, c) / (2 * auxiliary(t, c) * c.U * c.N)
+    return 1 / auxiliary(t, c)^4 - auxiliary_2d(t, c) / (2 * auxiliary(t, c) * Λ(c))
 end
 """
     correction_polyin(c::Control, correction_vector::Array{Float64,1})
@@ -146,4 +146,3 @@ function control_function(t::Float64, c::Control, correction_vector::Array{Float
     J_corr(t::Float64) = control_function(t, c) + correction_polyin(t, c, correction_vector)
     return piecewise(t, c.T, t -> J_corr(t))
 end
-

@@ -39,14 +39,14 @@ struct ConstantQuantity
     ψ0::Ket
     ψf::Ket
 end
-function ConstantQuantity(N::Int64, J0::Float64, Jf::Float64, U::Float64)
+function ConstantQuantity(N::Int64, Ωf::Float64, U::Float64)
     Jz = sigmaz(SpinBasis(N / 2)) / 2 |> dense       # Jz is a diagonal matrix 
     Jx = sigmax(SpinBasis(N / 2)) / 2 |> dense       # Jx operator
-    ψ0 = eigenstates(-2.0 * J0 * Jx + U * Jz^2)[2][1] # Initial state
-    ψf = eigenstates(-2.0 * Jf * Jx + U * Jz^2)[2][1] # Final state
+    ψ0 = eigenstates(- Jx + U * Jz^2)[2][1] # Initial state
+    ψf = eigenstates(- Ωf * Jx + U * Jz^2)[2][1] # Final state
     return ConstantQuantity(Jz, Jx, ψ0, ψf)
 end
-ConstantQuantity(c::Control) = ConstantQuantity(c.N, c.J0, c.Jf, c.U)
+ConstantQuantity(c::Control) = ConstantQuantity(c.N, c.Ωf, c.U)
 #=
 I want to define a new struct that will be the combination of the `Control` type and the `ConstantQuantity` type.
 
