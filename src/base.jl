@@ -49,6 +49,7 @@ end
 We have that $ \Lambda = UN/2 $, so I am going to define a function that returns said value given a `Control` object.
 =#
 
+ControlSTA(c::ControlFull) = ControlSTA(c.N, c.Ωf, c.U, c.T)
 Λ(N::Int64, U::Float64) = U * N / 2
 Λ(c::Control) = Λ(c.N, c.U)
 
@@ -66,3 +67,5 @@ Hess(c::Corrs) = c.kn * c.kn'
 v(c::Corrs) = conj(c.gn) * c.kn |> real
 Hess(cs::AbstractArray{Corrs, 1}) = [Hess(c) for c in cs] 
 v(cs::AbstractArray{Corrs, 1}) = [v(c) for c in cs]
+c_time(c::ControlFull, tf::Float64) = ControlFull(c.N, c.Ωf, c.U, tf, c.nλ, c.states)
+c_time(c::ControlSTA, tf::Float64) = ControlSTA(c.N, c.Ωf, c.U, tf)

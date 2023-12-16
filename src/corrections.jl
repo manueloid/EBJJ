@@ -96,7 +96,7 @@ function corrections(corr::AbstractArray{Corrs,1})
 end
 
 function corrections(c::ControlFull)
-    h, Λ, λs, narr = 2.0/c.N, Λ(c), c.nλ, c.states
+    h, Λ, λs, narr = 2.0/c.N, EBJJ.Λ(c), c.nλ, c.states
     # Definition of the auxiliary functions
     b(t) = auxiliary(t, c)
     db(t) = EBJJ.auxiliary_1d(t, c)
@@ -127,10 +127,10 @@ function corrections(c::ControlFull)
                                   bh(z - h, h) * gauss(z / h - 1, α2(t))
                                  )
         gn::ComplexF64 = hcubature(var -> lhs(var[1], var[2]) * rhs_g(var[1], var[2]),
-                                   [-15., 0.0], [15., c.T],
+                                   [-7.5, 0.0], [7.5, c.T],
                                    atol=1e-7)[1]
         kn::Vector{ComplexF64} = hcubature(var -> lhs(var[1], var[2]) * rhs_k(var[1], var[2]),
-                                           [-15., 0.0], [15., c.T],
+                                           [-7.5, 0.0], [7.5, c.T],
                                            atol=1e-7)[1]
         corrections[i] = Corrs(c,n,kn, gn)
     end

@@ -119,21 +119,18 @@ function kngn(c::Control, tfs::AbstractVector{Float64})
 end
 
 
-using EBJJ
-max_state = 2
-nλ = 5
-U = 0.1
-N = 10
-J0 = 0.245
-Jf = 0.1225
-t0, tf = 0.1, 4.
-tfs = range(t0, tf, length=19) 
-c = ControlFull(N, J0, Jf, U, tf, nλ, 2:2:max_state);
+using EBJJ, Plots
+max_state = 12
+nλ = 14
+U = 1.0
+N = 20
+t0, tf = 0.01, 0.1
+Ωf = 0.5
+tfs = range(t0, tf, length=49) 
+c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 fid_esta = fidelities(c, tfs)
 fid_sta = fidelities(cs, tfs)
-
-using Plots
 plot(tfs, fid_esta, label="eSTA")
 plot!(tfs, fid_sta, label="STA")
 

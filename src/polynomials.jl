@@ -54,23 +54,6 @@ where $ U $ is the energy of the system and $ N $ is the number of particles.
 =#
 
 """
-    piecewise(t, tf::Float64, f::Function)
-take a function `f` and generates a piecewise function of the form 
-`f(t) = f(0) if t < 0
-		f(t) if 0 <= t <= tf
-		f(tf) if t > tf`
-"""
-function piecewise(t, tf::Float64, f::Function)
-    if t < 0
-        return f(0.0)
-    elseif t > tf
-        return f(tf)
-    else
-        return f(t)
-    end
-end
-piecewise(t, c::Control, f::Function) = piecewise(t, c.T, f)
-"""
     auxiliary(t, tf::Float64, σ::Float64) 
 Return the value of the auxiliary function `b(t)` at time `t` given the final time `tf` and the parameter `σ`.
 """
@@ -79,7 +62,7 @@ function auxiliary(t::Float64, tf::Float64, σ::Float64)
            10 * (σ - 1) * (t / tf)^3 -
            15 * (σ - 1) * (t / tf)^4 +
            6 * (σ - 1) * (t / tf)^5
-    return piecewise(t, tf, t -> b(t))
+    return 0.0 <= t <= tf ? b(t) : 0.0
 end
 """
     auxiliary(t::Float64, c::Control)
@@ -101,7 +84,7 @@ function auxiliary_1d(t::Float64, c::Control)
         60 * (σ - 1) * (t / c.T)^3 +
         30 * (σ - 1) * (t / c.T)^4
     )
-    return piecewise(t, c.T, t -> f(t))
+    return 0.0 <= t <= c.T ? f(t) : 0.0
 end
 """
     auxiliary_2d(t::Float64, c::Control)
@@ -114,7 +97,7 @@ function auxiliary_2d(t::Float64, c::Control)
         180 * (σ - 1) * (t / c.T)^2 +
         120 * (σ - 1) * (t / c.T)^3
     )
-    return piecewise(t, c.T, t -> f(t))
+    return 0.0 <= t <= c.T ? f(t) : 0.0
 end
 """
     control_function(t::Float64, c::Control)
@@ -144,5 +127,5 @@ The vector is used to obtain the Lagrange polynomial and then add it to the cont
 """
 function control_function(t::Float64, c::Control, correction_vector::Array{Float64,1})
     J_corr(t::Float64) = control_function(t, c) + correction_polyin(t, c, correction_vector)
-    return piecewise(t, c.T, t -> J_corr(t))
+    return 0.0 <= t <= c.T ? J_corr(t) : 0.0
 end
