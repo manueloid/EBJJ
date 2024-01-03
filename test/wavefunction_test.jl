@@ -28,13 +28,13 @@ he(n::Int64, x::Float64) = SpecialPolynomials.basis(Hermite, n)(x)
 """
     momentum(n::Int64, p::Float64, α::ComplexF64)
 Wave function in momentum representation, for a general complex number `α`.
+This function does not have the imaginaray phase term.
 """
 function momentum(n::Int64, z::Float64, α::ComplexF64, h::Float64)
     r = sqrt(real(α))
     f(p, z) = (2pi * h)^(-1 / 2) * exp(im * p * z / h) * # Fourier transform term
               (r^2 / pi)^(1 / 4) * # Normalisation term
               (2^n * factorial(n))^(-1 / 2) * # Hermite polynomial normalisation term
-              exp(-im * (n + 1 / 2) * atan(1 / r)) * # Phase term
               exp(-p^2 * α / 2) * # Gaussian term
               he(n, p * r) # Hermite polynomial
     return quadgk(p -> f(p, z), -Inf, Inf, atol=1e-7)[1]
@@ -43,12 +43,12 @@ end
     position(n::Int64, z::Float64, α::ComplexF64, h::Float64)
 Fourier transform of the wave function in momentum representation, for a general complex number `α`.
 In this case I needed to introduce the parameter `h` coming from the Fourier transform.
+This function does not have the imaginaray phase term.
 """
 function position(n::Int64, z::Float64, α::ComplexF64, h::Float64)
     r = sqrt(real(α))
     return (r^2 / pi)^(1 / 4) * # Normalisation term
            (2^n * factorial(n))^(-1 / 2) * # Hermite polynomial normalisation term
-           exp(-im * (n + 1 / 2) * atan(1 / r)) * # Phase term
            im^n / sqrt(h) * 1 / sqrt(α) * (conj(α) / α)^(n / 2) * # Fourier transform term
            exp(-z^2 / (2 * α)) * # Gaussian term
            he(n, z * r / abs(α)) # Hermite polynomial
@@ -81,13 +81,22 @@ function f2(t::Float64, c::Control)
    return sqrt(1 / (2Λ)) * 1 / (h * b(t)^2) - im * db(t) / (2Λ * h * b(t))
 end
 """
+    φ(t::Float64, c::Control)
+Function that returns the value of the phase factor for the given control parameters.
+"""
+function φ(t::Float64, c::Control)
+    h, Λ = 2.0 / c.N, EBJJ.Λ(c)
+    imag_phase_integrand(t::Float64) = 2Λ * h * real(f2(t,c)) # Integrand of the phase factor
+    return quadgk(τ -> imag_phase_integrand(τ), 0.0, t, atol=1e-7)[1]
+end
+"""
     momentum(n::Int64, z::Float64, t::Float64, c::Control)
 Function that returns the Fourier transform of the wave function in momentum representation for a certain time `t`, given the parameters of the system in the `Control` type.
 """
 function momentum(n::Int64, z::Float64, t::Float64, c::Control)
     h = 2.0 / c.N
     α = f2(t, c)
-    return momentum(n, z, α, h)
+    return momentum(n, z, α, h) * exp(-im * (n + 1 / 2) * φ(t, c)) # Phase factor
 end
 """
     position(n::Int64, z::Float64, t::Float64, c::Control)
@@ -96,7 +105,7 @@ Function that returns the Fourier transform of the wave function in position rep
 function position(n::Int64, z::Float64, t::Float64, c::Control)
     h = 2.0 / c.N
     α = f2(t, c)
-    return position(n, z / h, α, h)
+    return position(n, z / h, α, h) * exp(-im * (n + 1 / 2) * φ(t, c)) # Phase factor
 end
 
 @testset "Testing the Fourier transform for f²" begin
@@ -106,3 +115,21 @@ end
         @test isapprox(momentum(n, z, t, c), position(n, z, t, c), atol=1e-4)
     end
 end
+
+#=
+### 2. Corrections 
+
+In this section I will check if the simplifications I made give the same result as the full expression.
+I will first test the corrections for a general complex number and then I will pass the actual value of the parameter $ f^2$..
+
+The wave function that I am going to use - the $ \chi_n(z,t) $ - is the `position` function defined above.
+
+The plan is to see if the integral over the whole 2D interval of $\chi_n(z,t) \chi_0(z,t)$ gives the same result as the integral over the whole 2D interval of the simplified version that I got elsewhere.
+
+After that I will try to see if the value of the corrections are the same.
+
+#### 2.1. Corrections for a general complex number
+
+
+=#
+
