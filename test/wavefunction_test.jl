@@ -78,7 +78,7 @@ function f2(t::Float64, c::Control)
     # Definition of the auxiliary functions
     b(t) = auxiliary(t, c)
     db(t) = EBJJ.auxiliary_1d(t, c)
-   return sqrt(1 / (2Λ)) * 1 / (h * b(t)^2) - im * db(t) / (2Λ * h * b(t))
+    return sqrt(1 / (2Λ)) * 1 / (h * b(t)^2) - im * db(t) / (2Λ * h * b(t))
 end
 """
     φ(t::Float64, c::Control)
@@ -86,7 +86,7 @@ Function that returns the value of the phase factor for the given control parame
 """
 function φ(t::Float64, c::Control)
     h, Λ = 2.0 / c.N, EBJJ.Λ(c)
-    imag_phase_integrand(t::Float64) = 2Λ * h * real(f2(t,c)) # Integrand of the phase factor
+    imag_phase_integrand(t::Float64) = 2Λ * h * real(f2(t, c)) # Integrand of the phase factor
     return quadgk(τ -> imag_phase_integrand(τ), 0.0, t, atol=1e-7)[1]
 end
 """
@@ -110,8 +110,8 @@ end
 
 @testset "Testing the Fourier transform for f²" begin
     for _ in 1:5000
-        n, z, t = rand(0:2:8), rand(), rand() 
-        c = ControlFull( rand(10:10:50), rand(), rand(), t, 2, 2:2)
+        n, z, t = rand(0:2:8), rand(), rand()
+        c = ControlFull(rand(10:10:50), rand(), rand(), t, 2, 2:2)
         @test isapprox(momentum(n, z, t, c), position(n, z, t, c), atol=1e-4)
     end
 end
@@ -130,6 +130,37 @@ After that I will try to see if the value of the corrections are the same.
 
 #### 2.1. Corrections for a general complex number
 
-
+I have the `position` function defined above, that is the full wave function, so I only need to take the product of that function with the complex conjugate of another one for different `n`.
+I will get the simplified version of the product of two wave functions from another file and then compare the two integrals.     
+For this case I will not pass the imaginary phase integral to the `position` function, as I will need it later.
 =#
 
+"""
+    simplified(n::Int64, α2::ComplexF64, α2c::ComplexF64, h::Float64)
+Return the time dependent part of the product ⟨χₙ|χ₀⟩, for a general complex number `α` its complex conjugate `αc` and the energy level `n`.
+This is the simplified version of the product of two wave functions.
+The function also takes the parameter `h`, for later use.
+The function takes two complex numbers as input to reduce the computational cost.
+"""
+function simplified(n::Int64,z::Float64, α::ComplexF64,  h::Float64)
+    r = sqrt(real(α))
+    αc = conj(α)
+    return (r / pi)^(1 / 2) * (1 / sqrt(2^n * factorial(n))) * ((-im)^n / h) * (1 / abs(α)) * (α / αc)^(n / 2) *
+           exp(-z^2 / (2 * α)) * he(n, z * r / abs(α)) * exp(-z^2 / (2 * α))
+end
+"""
+    non_simplified(n::Int64, z::Float64, α::ComplexF64,  h::Float64)
+Return the time dependent part of the product ⟨χₙ|χ₀⟩, for a general complex number `α` and the energy level `n`, without any simplification.
+"""
+function non_simplified(n::Int64, z::Float64, α::ComplexF64, h::Float64)
+    αc = conj(α)
+    return position(n, z, αc, h) * position(0, z, α, h)
+end
+
+# Simple test to see if the two functions give the same result, without integration
+@testset "Testing the simplified version" begin
+    for _ in 1:5
+        n, z, α, h = rand(0:2:8), rand(), rand() + im * rand(), rand()
+        @test isapprox(simplified(n, z/h, α, h), non_simplified(n, z/h, α, h), atol=1e-4)
+    end
+end
