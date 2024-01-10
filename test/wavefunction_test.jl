@@ -105,14 +105,16 @@ Function that returns the Fourier transform of the wave function in position rep
 function position(n::Int64, z::Float64, t::Float64, c::Control)
     h = 2.0 / c.N
     α = f2(t, c)
-    return position(n, z / h, α, h) * exp(-im * (n + 1 / 2) * φ(t, c)) # Phase factor
+    return position(n, z, α, h) * exp(-im * (n + 1 / 2) * φ(t, c)) # Phase factor
 end
 
 @testset "Testing the Fourier transform for f²" begin
     for _ in 1:5000
         n, z, t = rand(0:2:8), rand(), rand()
-        c = ControlFull(rand(10:10:50), rand(), rand(), t, 2, 2:2)
-        @test isapprox(momentum(n, z, t, c), position(n, z, t, c), atol=1e-4)
+        N = rand(10:10:50)
+        h = 2.0 / N
+        c = ControlFull(N, rand(), rand(), t, 2, 2:2)
+        @test isapprox(momentum(n, z, t, c), position(n, z/h, t, c), atol=1e-4)
     end
 end
 
@@ -142,11 +144,13 @@ This is the simplified version of the product of two wave functions.
 The function also takes the parameter `h`, for later use.
 The function takes two complex numbers as input to reduce the computational cost.
 """
-function simplified(n::Int64,z::Float64, α::ComplexF64,  h::Float64)
+function simplified(n::Int64, z::Float64, α::ComplexF64, h::Float64)
     r = sqrt(real(α))
     αc = conj(α)
-    return (r / pi)^(1 / 2) * (1 / sqrt(2^n * factorial(n))) * ((-im)^n / h) * (1 / abs(α)) * (α / αc)^(n / 2) *
-           exp(-z^2 / (2 * α)) * he(n, z * r / abs(α)) * exp(-z^2 / (2 * α))
+    return (r^2 / pi)^(1 / 2) * # Normalisation term
+           (2^n * factorial(n))^(-1 / 2) * # Hermite polynomial normalisation term
+           ((-im)^n / h) / abs(α) * (α / αc)^(n / 2) * # Fourier transform normalisation term
+           exp(-z^2 / (2 * αc)) * he(n, z * r / abs(α)) * exp(-z^2 / (2 * α))
 end
 """
     non_simplified(n::Int64, z::Float64, α::ComplexF64,  h::Float64)
@@ -159,8 +163,8 @@ end
 
 # Simple test to see if the two functions give the same result, without integration
 @testset "Testing the simplified version" begin
-    for _ in 1:5
+    for _ in 1:500
         n, z, α, h = rand(0:2:8), rand(), rand() + im * rand(), rand()
-        @test isapprox(simplified(n, z/h, α, h), non_simplified(n, z/h, α, h), atol=1e-4)
+        @test isapprox(simplified(n, z / h, α, h), non_simplified(n, z / h, α, h), atol=1e-4)
     end
 end
