@@ -23,7 +23,7 @@ Then I will define the function `position` which is the analytic solution of the
 I will finally test the two functions for random values of the parameters.
 =#
 
-using SpecialPolynomials, QuadGK, EBJJ, Test
+using SpecialPolynomials, QuadGK, EBJJ, Test, HCubature
 he(n::Int64, x::Float64) = SpecialPolynomials.basis(Hermite, n)(x)
 """
     momentum(n::Int64, p::Float64, α::ComplexF64)
@@ -114,7 +114,7 @@ end
         N = rand(10:10:50)
         h = 2.0 / N
         c = ControlFull(N, rand(), rand(), t, 2, 2:2)
-        @test isapprox(momentum(n, z, t, c), position(n, z/h, t, c), atol=1e-4)
+        @test isapprox(momentum(n, z, t, c), position(n, z / h, t, c), atol=1e-4)
     end
 end
 
@@ -168,3 +168,78 @@ end
         @test isapprox(simplified(n, z / h, α, h), non_simplified(n, z / h, α, h), atol=1e-4)
     end
 end
+
+#=
+#### 2.2. Corrections for $ f^2$
+
+Now I will do the same thing as before, but I will pass the actual value of the parameter $ f^2$ for a certain time `t`.
+It is nothing different from what I did in section 1.2.
+=#
+
+"""
+    simplified(n::Int64, z::Float64, t::Float64, c::Control)
+Return the time dependent part of the product ⟨χₙ|χ₀⟩, for a certain time `t`, given the parameters of the system in the `Control` type.
+This is the simplified version of the product of two wave functions.
+"""
+function simplified(n::Int64, z::Float64, t::Float64, c::Control)
+    h = 2.0 / c.N
+    α = f2(t, c)
+    return simplified(n, z, α, h) * exp(-im * (n + 1 / 2) * φ(t, c)) # Phase factor
+end
+"""
+    non_simplified(n::Int64, z::Float64, t::Float64, c::Control)
+Return the time dependent part of the product ⟨χₙ|χ₀⟩, for a certain time `t`, given the parameters of the system in the `Control` type, without any simplification.
+"""
+function non_simplified(n::Int64, z::Float64, t::Float64, c::Control)
+    h = 2.0 / c.N
+    α = f2(t, c)
+    return non_simplified(n, z, α, h) * exp(-im * (n + 1 / 2) * φ(t, c)) # Phase factor
+end
+
+@testset "Testing the simplified version for f²" begin
+    for _ in 1:5000
+        n, z, t = rand(0:2:8), rand(), rand()
+        N = rand(10:10:50)
+        h = 2.0 / N
+        c = ControlFull(N, rand(), rand(), t, 2, 2:2)
+        @test isapprox(simplified(n, z, t, c), non_simplified(n, z, t, c), atol=1e-4)
+    end
+end
+
+#=
+#### 2.3. Testing the values of the integrals
+
+Now I will test if the integrals of the two functions give the same result.
+I will do that directly for the value of $ f^2 $.
+
+I will both perform a 2d integration and a double 1d integration.
+=#
+
+@testset "Testing the integrals for f²" begin
+    for _ in 1:5
+        n, t = rand(0:2:8), rand()
+        N = rand(10:10:50)
+        h = 2.0 / N
+        c = ControlFull(N, rand(), rand(), t, 2, 2:2)
+        simplified_integrand(t) = quadgk(z -> simplified(n, z, t, c), -1., 1., atol=1e-7)[1] # 2d integration
+        non_simplified_integrand(t) = quadgk(z -> non_simplified(n, z, t, c), -1., 1., atol=1e-7)[1] # 2d integration
+        @test isapprox(
+            quadgk(simplified_integrand, 0.0, t, atol=1e-7)[1], # double 1d integration
+            quadgk(non_simplified_integrand, 0.0, t, atol=1e-7)[1], # double 1d integration
+            atol=1e-4
+        )
+        @test isapprox(
+            hcubature(v -> simplified(n, v[1], v[2], c), [-10., 0.0], [1, t], atol=1e-7)[1], # double 1d integration
+            hcubature(v -> non_simplified(n, v[1], v[2], c), [-10., 0.0], [1, t], atol=1e-7)[1], # double 1d integration
+            atol=1e-4
+        )
+    end
+end
+
+#=
+### 3. Conclusions
+
+The tests are all passed, so I can start from here and use the simplified version of the wave function to calculate the corrections 
+
+=#
+

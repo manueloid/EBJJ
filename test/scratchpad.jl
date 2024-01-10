@@ -15,53 +15,7 @@ Here I need to check that the auxiliary functions work as expected.
 I will plot a series of auxiliary functions for different final times to see how they look.
 =#
 
-using Plots
-tfs = range(0.01, 0.05, length=10) |> collect # Final times
-time_evo(final_time::Float64) = range(0.0, final_time, length=1000) |> collect # return a range of points in the interval [0, tf]
-plot()
-for tf in tfs
-    c = ControlFull(10, 50.0, 40.0, 0.49, tf)
-    b(t) = auxiliary(t, c)
-    plot!(time_evo(tfs[end]), b.(time_evo(tfs[end])))
-end
-plot!()
-
-#=
-# 2 - Control function
-
-Now I am going to check how the control function behaves.
-
-I will follow the same steps I used earlier.
-=#
-
-plot()
-for tf in tfs
-    c = ControlFull(10, 50.0, 40.0, 0.49, tf)
-    J(t) = control_function(t, c)
-    plot!(time_evo(tfs[end]), J.(time_evo(tfs[end])))
-end
-plot!()
-
-#=
-## 2.1 Control Function with corrections
-
-I have also implmentend a function that return the value of the corrected control function given a list of corrections.
-Here I am going to check if it works as expected.
-
-The maximum values of the control function depend on the final time, so I will define the corrections as something of the form `1/tf * rand(5)`, hopefully the magnitude of the corrections will be similar to the one of the control function $J$.
-=#
-
-plot()
-for tf in tfs
-    c = ControlFull(10, 50.0, 40.0, 0.49, tf)
-    J(t) = control_function(t, c)
-    corr = 1 / tf * rand(5)
-    J_corr(t) = control_function(t, c, corr)
-    plot!(time_evo(tfs[end]), J_corr.(time_evo(tfs[end])))
-    plot!(time_evo(tfs[end]), J.(time_evo(tfs[end])))
-end
-plot!()
-
+using Plots, EBJJ
 
 #=
 # 3 - Hamiltonian 
@@ -78,7 +32,6 @@ I will lay out everything inside the body of the function, hoping that I can get
 =#
 
 
-using EBJJ 
 """
     fidelities(c::Control, tfs::AbstractVector{Float64})
 Calculate the fidelity of the control object `c` at the final times `tfs` for different values of the final time
@@ -120,11 +73,11 @@ end
 
 
 using EBJJ, Plots
-max_state = 12
-nλ = 14
-U = 1.0
-N = 20
-t0, tf = 0.01, 0.1
+max_state = 10
+nλ = 8
+U = 0.5
+N = 10
+t0, tf = 0.01, 4.0
 Ωf = 0.5
 tfs = range(t0, tf, length=49) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
