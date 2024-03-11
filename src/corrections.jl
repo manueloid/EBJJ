@@ -84,17 +84,14 @@ function gradient_int(tarray::Array{Float64,1})
     return gradient
 end
 
-function corrections(v::Vector{Float64}, hessian::Matrix{ComplexF64})
-    num = v * LinearAlgebra.norm(v)^2
-    den = v' * hessian * v
-    return num / den |> real
-end
-function corrections(corr::AbstractArray{Corrs,1})
-    hess = EBJJ.Hess(corr) |> sum
-    v = EBJJ.v(corr) |> sum
-    return -corrections(v, hess)
-end
+"""
+    corrections(c::ControlFull)
+Calculate the corrections to the eSTA protocol, given the `ControlFull` type.
 
+It returns a vector of `Corrs` types, where each element is the correction for the n-th energy level.
+
+Each `Corrs` variable contains the value of the Gₙ and Kₙ integrals that can then be used to calculate the eSTA corrections.
+"""
 function corrections(c::ControlFull)
     h, Λ, λs, narr = 2.0 / c.N, EBJJ.Λ(c), c.nλ, c.states
     # Definition of the auxiliary functions
@@ -128,16 +125,37 @@ function corrections(c::ControlFull)
             bh(z - h, h) * exp(-(z/h - 1)^2 / (2 * f2(t)))
         )
         gn::ComplexF64 = hcubature(var -> lhs(var[1]/h, var[2]) * rhs_g(var[1], var[2]),
-            [-7.5, 0.0], [7.5, c.T],
+            [-10.0, 0.0], [10.0, c.T],
             atol=1e-7)[1]
         kn::Vector{ComplexF64} = hcubature(var -> lhs(var[1]/h, var[2]) * rhs_k(var[1], var[2]),
-            [-7.5, 0.0], [7.5, c.T],
+            [-10.0, 0.0], [10.0, c.T],
             atol=1e-7)[1]
         corrections[i] = Corrs(c, n, kn, gn)
     end
     return corrections
 end
+"""
+    corrections(v::Vector{Float64}, hessian::Matrix{ComplexF64})
+Calculate the corrections to the eSTA protocol, given the vector `v` and the Hessian matrix `hessian` as explained in the paper.
+"""
+function corrections(v::Vector{Float64}, hessian::Matrix{ComplexF64})
+    num = v * LinearAlgebra.norm(v)^2
+    den = v' * hessian * v
+    return num / den |> real
+end
+"""
+    corrections(corr::AbstractArray{Corrs,1})
+Calculate the corrections for the eSTA protocol, given an array of `Corrs` types.
+
+For each of them, it uses the function `EBJJ.Hess` and `EBJJ.v` to calculate the Hessian matrix and the vector `v` respectively, for a given `Corrs` type.
+"""
+function corrections(corr::AbstractArray{Corrs,1})
+    hess = EBJJ.Hess(corr) |> sum
+    v = EBJJ.v(corr) |> sum
+    return -corrections(v, hess)
+end
 corrections(n::Int64, c::ControlFull, λs::Int64=5) = corrections(2:2:n, c, λs)
+
 #=
 #### 4.2. $ K_n $
 

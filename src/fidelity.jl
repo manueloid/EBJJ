@@ -95,7 +95,6 @@ I defined a new type called `Error` so that I did not need to define any functio
 In this way I do not have to define multiple fidelities functions, one is enough
 =#
 
-
 """
     fidelity(q::ConstantQuantity, c::Control, e::Error)
 Returns the fidelity of the protocol given the parameters of the system in `ConstantQuantity` and `Control` types, and the error `e` in the control function.
@@ -118,3 +117,5 @@ function fidelity(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e
     fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
     return timeevolution.schroedinger_dynamic([0.0, c.T], q.ψ0, H; fout=fid)[2][end]
 end
+fidelity(q::ConstantQuantity, c::ControlFull, corrs::AbstractVector{Corrs}, e::Error=Error(0.0, 0.0)) = fidelity(q, c, corrections(corrs), e)
+fidelity(q::ConstantQuantity, c::ControlFull) = fidelity(q, c, corrections(c))

@@ -72,19 +72,20 @@ function kngn(c::Control, tfs::AbstractVector{Float64})
 end
 
 using EBJJ, Plots
-max_state = 2
-nλ = 1
-U = 1.
-N = 10
-t0, tf = 0.03, 2.0
+max_state = 8
+nλ = 5
+U = 2.0
+N = 20
+t0, tf = 0.03, 5.0
 Ωf = 0.1
 tfs = range(t0, tf, length=20) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
-robustness(q,c,err)
+fid_esta = fidelities(c, tfs)
+fid_sta = fidelities(cs, tfs)
+plot(tfs, fid_esta, label="eSTA")
+plot!(tfs, fid_sta, label="STA")
 
-# fid_esta = fidelities(c, tfs)
-# fid_sta = fidelities(cs, tfs)
 # rob_esta = robustnesses(c, tfs, Error(0.0, 1e-7))
 # rob_sta = robustnesses(cs, tfs, ModError(1e-7))
