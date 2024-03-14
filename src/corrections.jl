@@ -102,7 +102,7 @@ function corrections(c::ControlFull)
     gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
     grad(t::Float64) = [g(t) for g in gradient_functions]
     f2(t::Float64) = sqrt(1 / (2Λ)) * 1 / (h * b(t)^2) - im * db(t) / (2Λ * h * b(t))
-    f2c(t::Float64) = sqrt(1 / (2Λ)) * 1 / (h * b(t)) + im * db(t) / (2Λ * h * b(t))
+    f2c(t::Float64) = sqrt(1 / (2Λ)) * 1 / (h * b(t)^2) + im * db(t) / (2Λ * h * b(t))
     r(t::Float64) = sqrt(real(f2(t)))
     # Gns = 0.0 + 0.0im           # Variable to store the values gn
     # Kns = zeros(ComplexF64, λs) # Variable to store the value kn

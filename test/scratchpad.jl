@@ -31,7 +31,7 @@ I will define a new function that evaluates both the corrections and the corresp
 I will lay out everything inside the body of the function, hoping that I can get some nice result
 =#
 
-using EBJJ
+using EBJJ, ProgressMeter
 """
     fidelities(c::Control, tfs::AbstractVector{Float64})
 Calculate the fidelity of the control object `c` at the final times `tfs` for different values of the final time
@@ -39,9 +39,11 @@ Calculate the fidelity of the control object `c` at the final times `tfs` for di
 function fidelities(c::Control, tfs::AbstractVector{Float64})
     q = ConstantQuantity(c)
     fid = zeros(length(tfs))
+    p = Progress(length(tfs), 1, "Calculating fidelities")
     Threads.@threads for index in eachindex(tfs)
         cl = EBJJ.c_time(c, tfs[index])
         fid[index] = EBJJ.fidelity(q, cl)
+        next!(p)
     end
     return fid
 end
@@ -52,9 +54,11 @@ end
 function robustnesses(c::Control, tfs::AbstractVector{Float64}, ε::AbstractError)
     q = ConstantQuantity(c)
     rob = zeros(length(tfs))
+    p = Progress(length(tfs), 1, "Calculating robustnesses")
     Threads.@threads for index in eachindex(tfs)
         cl = EBJJ.c_time(c, tfs[index])
         rob[index] = EBJJ.robustness(q, cl, ε)
+        next!(p)
     end
     return rob
 end
@@ -72,11 +76,11 @@ function kngn(c::Control, tfs::AbstractVector{Float64})
 end
 
 using EBJJ, Plots
-max_state = 8
+max_state = 10
 nλ = 5
-U = 2.0
-N = 20
-t0, tf = 0.03, 5.0
+U = 0.4
+N = 50
+t0, tf = 0.03, 1.0
 Ωf = 0.1
 tfs = range(t0, tf, length=20) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
@@ -86,6 +90,13 @@ fid_esta = fidelities(c, tfs)
 fid_sta = fidelities(cs, tfs)
 plot(tfs, fid_esta, label="eSTA")
 plot!(tfs, fid_sta, label="STA")
-
+using DelimitedFiles
+test1 = readdlm("/home/manuel/Repos/ExternalBJJ/data/fid200esta4X01.dat")
+test2 = readdlm("/home/manuel/Repos/ExternalBJJ/data/fid200esta01.dat")
+plot()
+plot!(test1[:,1], test1[:,2], label="eSTA 4X01")
+plot!(test2[:,1], test2[:,2], label="eSTA 01")
 # rob_esta = robustnesses(c, tfs, Error(0.0, 1e-7))
 # rob_sta = robustnesses(cs, tfs, ModError(1e-7))
+
+
