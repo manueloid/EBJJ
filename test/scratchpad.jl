@@ -57,7 +57,7 @@ function robustnesses(c::Control, tfs::AbstractVector{Float64}, ε::AbstractErro
     p = Progress(length(tfs), 1, "Calculating robustnesses")
     Threads.@threads for index in eachindex(tfs)
         cl = EBJJ.c_time(c, tfs[index])
-        rob[index] = EBJJ.robustness(q, cl, ε)
+        rob[index] = EBJJ.robustness(q, cl, ε) |> abs
         next!(p)
     end
     return rob
@@ -76,27 +76,35 @@ function kngn(c::Control, tfs::AbstractVector{Float64})
 end
 
 using EBJJ, Plots
-max_state = 10
-nλ = 5
-U = 0.4
+max_state = 2
+nλ = 2
+U = 1.0
 N = 50
-t0, tf = 0.03, 1.0
+t0, tf = 0.02, 0.5
 Ωf = 0.1
-tfs = range(t0, tf, length=20) 
+tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
+
 fid_esta = fidelities(c, tfs)
 fid_sta = fidelities(cs, tfs)
+
+plot()
 plot(tfs, fid_esta, label="eSTA")
 plot!(tfs, fid_sta, label="STA")
+
 using DelimitedFiles
-test1 = readdlm("/home/manuel/Repos/ExternalBJJ/data/fid200esta4X01.dat")
-test2 = readdlm("/home/manuel/Repos/ExternalBJJ/data/fid200esta01.dat")
+some = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fid50esta04.dat")
+some2 = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fid50sta04.dat")
+
 plot()
-plot!(test1[:,1], test1[:,2], label="eSTA 4X01")
-plot!(test2[:,1], test2[:,2], label="eSTA 01")
-# rob_esta = robustnesses(c, tfs, Error(0.0, 1e-7))
-# rob_sta = robustnesses(cs, tfs, ModError(1e-7))
+# plot(tfs, fid_esta, label="eSTA")
+plot!(some[:,1], some[:,2], label="eSTA data")
+plot!(some2[:,1], some2[:,2], label="STA data")
 
-
+rob_esta = robustnesses(c, tfs, TimeError(1.e-5))
+rob_sta = robustnesses(cs, tfs, TimeError(1.e-5))
+plot()
+plot(tfs, rob_esta, label="eSTA")
+plot!(tfs, rob_sta, label="STA")

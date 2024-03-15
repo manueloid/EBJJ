@@ -107,6 +107,13 @@ The control function is defined as
 where b(t) is the auxiliary function.
 """
 function control_function(t::Float64, c::Control)
+    if t < 0.0 
+        return 1.0
+    elseif t > c.T
+        return c.Ωf
+    else
+        return 1 / auxiliary(t, c)^4 - auxiliary_2d(t, c) / (2 * auxiliary(t, c) * c.U * c.N)
+    end
     return 1 / auxiliary(t, c)^4 - auxiliary_2d(t, c) / (2 * auxiliary(t, c) * Λ(c))
 end
 """

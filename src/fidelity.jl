@@ -118,4 +118,6 @@ function fidelity(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e
     return timeevolution.schroedinger_dynamic([0.0, c.T], q.ψ0, H; fout=fid)[2][end]
 end
 fidelity(q::ConstantQuantity, c::ControlFull, corrs::AbstractVector{Corrs}, e::Error=Error(0.0, 0.0)) = fidelity(q, c, corrections(corrs), e)
-fidelity(q::ConstantQuantity, c::ControlFull) = fidelity(q, c, corrections(c))
+fidelity(q::ConstantQuantity, c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity(q, c, corrections(c), e)
+robustness(q::ConstantQuantity, c::Control, δ::TimeError) = (fidelity(q, c, Error(0.0, δ.err)) - fidelity(q, c, Error(0.0, -δ.err))) / δ.err
+robustness(q::ConstantQuantity, c::Control, ε::ModError) = (fidelity(q, c, Error(ε.err, 0.0)) - fidelity(q, c, Error(-ε.err, 0.0))) / ε.err
