@@ -119,5 +119,5 @@ function fidelity(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e
 end
 fidelity(q::ConstantQuantity, c::ControlFull, corrs::AbstractVector{Corrs}, e::Error=Error(0.0, 0.0)) = fidelity(q, c, corrections(corrs), e)
 fidelity(q::ConstantQuantity, c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity(q, c, corrections(c), e)
-robustness(q::ConstantQuantity, c::Control, δ::TimeError) = (fidelity(q, c, Error(0.0, δ.err)) - fidelity(q, c, Error(0.0, -δ.err))) / δ.err
-robustness(q::ConstantQuantity, c::Control, ε::ModError) = (fidelity(q, c, Error(ε.err, 0.0)) - fidelity(q, c, Error(-ε.err, 0.0))) / ε.err
+robustness(q::ConstantQuantity, c::Control, δ::TimeError) = (fidelity(q, c, Error(0.0, δ.err)) - fidelity(q, c, Error(0.0, -δ.err))) / (2 * δ.err)
+robustness(q::ConstantQuantity, c::Control, ε::ModError) = (fidelity(q, c, Error(ε.err, 0.0)) - fidelity(q, c, Error(-ε.err, 0.0))) / (2 * ε.err)

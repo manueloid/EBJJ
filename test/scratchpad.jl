@@ -78,7 +78,7 @@ end
 using EBJJ, Plots
 max_state = 2
 nλ = 2
-U = 1.0
+U = 0.4
 N = 50
 t0, tf = 0.02, 0.5
 Ωf = 0.1
@@ -103,8 +103,8 @@ plot()
 plot!(some[:,1], some[:,2], label="eSTA data")
 plot!(some2[:,1], some2[:,2], label="STA data")
 
-rob_esta = robustnesses(c, tfs, TimeError(1.e-5))
-rob_sta = robustnesses(cs, tfs, TimeError(1.e-5))
+rob_esta = robustnesses(c, tfs, TimeError(1.e-2))
+rob_sta = robustnesses(cs, tfs, TimeError(1.e-2))
 plot()
 plot(tfs, rob_esta, label="eSTA")
 plot!(tfs, rob_sta, label="STA")
