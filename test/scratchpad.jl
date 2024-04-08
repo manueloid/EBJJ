@@ -77,10 +77,10 @@ end
 
 using EBJJ, Plots
 max_state = 2
-nλ = 2
+nλ = 1
 U = 0.4
 N = 50
-t0, tf = 0.02, 0.5
+t0, tf = 0.002,  0.2
 Ωf = 0.1
 tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
@@ -91,17 +91,17 @@ fid_esta = fidelities(c, tfs)
 fid_sta = fidelities(cs, tfs)
 
 plot()
-plot(tfs, fid_esta, label="eSTA")
-plot!(tfs, fid_sta, label="STA")
+plot(tfs, fid_esta, label="eSTA", xlim = (0.002, 0.2) )
+plot!(tfs, fid_sta, label="STA" )
 
 using DelimitedFiles
-some = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fid50esta04.dat")
-some2 = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fid50sta04.dat")
+some = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid50esta04.dat")
+some2 = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid50sta04.dat")
 
-plot()
 # plot(tfs, fid_esta, label="eSTA")
-plot!(some[:,1], some[:,2], label="eSTA data")
-plot!(some2[:,1], some2[:,2], label="STA data")
+plot!(some[:,1], some[:,2], label="eSTA data", style = :dash)
+plot!(some2[:,1], some2[:,2], label="STA data", style = :dash)
+# savefig("/home/manueloid/Desktop/compare50_04.pdf")
 
 rob_esta = robustnesses(c, tfs, TimeError(1.e-2))
 rob_sta = robustnesses(cs, tfs, TimeError(1.e-2))

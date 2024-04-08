@@ -54,6 +54,19 @@ where $ U $ is the energy of the system and $ N $ is the number of particles.
 =#
 
 """
+    piecewise(f::Function, lim::AbstractVector{Number})
+    Take a function and returns its piecewise version given the interval limits `t₀` and `tₑ`
+"""
+function piecewise(f::Function,t, t₀::Number, tₑ::Number)
+    if t < t₀
+        return f(t₀)
+    elseif t > tₑ
+        return f(tₑ)
+    else return f(t)
+    end
+end
+piecewise(f::Function, t, interval::AbstractVector{Number}) = piecewise(f, t, interval[1], interval[end])
+"""
     auxiliary(t, tf::Float64, σ::Float64) 
 Return the value of the auxiliary function `b(t)` at time `t` given the final time `tf` and the parameter `σ`.
 """
@@ -62,7 +75,7 @@ function auxiliary(t::Float64, tf::Float64, σ::Float64)
            10 * (σ - 1) * (t / tf)^3 -
            15 * (σ - 1) * (t / tf)^4 +
            6 * (σ - 1) * (t / tf)^5
-    return 0.0 <= t <= tf ? b(t) : 0.0
+    return piecewise(b, t, 0.0, tf)
 end
 """
     auxiliary(t::Float64, c::Control)
@@ -84,7 +97,7 @@ function auxiliary_1d(t::Float64, c::Control)
         60 * (σ - 1) * (t / c.T)^3 +
         30 * (σ - 1) * (t / c.T)^4
     )
-    return 0.0 <= t <= c.T ? f(t) : 0.0
+    return piecewise(f, t, 0.0, c.T)
 end
 """
     auxiliary_2d(t::Float64, c::Control)
@@ -97,7 +110,7 @@ function auxiliary_2d(t::Float64, c::Control)
         180 * (σ - 1) * (t / c.T)^2 +
         120 * (σ - 1) * (t / c.T)^3
     )
-    return 0.0 <= t <= c.T ? f(t) : 0.0
+    return piecewise(f, t, 0.0, c.T)
 end
 """
     control_function(t::Float64, c::Control)
@@ -107,14 +120,8 @@ The control function is defined as
 where b(t) is the auxiliary function.
 """
 function control_function(t::Float64, c::Control)
-    if t < 0.0 
-        return 1.0
-    elseif t > c.T
-        return c.Ωf
-    else
-        return 1 / auxiliary(t, c)^4 - auxiliary_2d(t, c) / (2 * auxiliary(t, c) * c.U * c.N)
-    end
-    return 1 / auxiliary(t, c)^4 - auxiliary_2d(t, c) / (2 * auxiliary(t, c) * Λ(c))
+    f(t) =  1 / auxiliary(t, c)^4 - auxiliary_2d(t, c) / (2 * auxiliary(t, c) * Λ(c))
+    return piecewise(f, t, 0.0, c.T)
 end
 """
     correction_polyin(c::Control, correction_vector::Array{Float64,1})
@@ -134,5 +141,5 @@ The vector is used to obtain the Lagrange polynomial and then add it to the cont
 """
 function control_function(t::Float64, c::Control, correction_vector::Array{Float64,1})
     J_corr(t::Float64) = control_function(t, c) + correction_polyin(t, c, correction_vector)
-    return 0.0 <= t <= c.T ? J_corr(t) : 0.0
+    return piecewise(J_corr, t, 0.0, c.T)
 end
