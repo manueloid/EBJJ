@@ -75,12 +75,12 @@ function kngn(c::Control, tfs::AbstractVector{Float64})
     return corrs
 end
 
-using EBJJ, Plots
+using EBJJ, Plots, DelimitedFiles
 max_state = 2
 nλ = 1
-U = 0.4
-N = 50
-t0, tf = 0.002,  0.2
+U = .1
+N = 200
+t0, tf = 0.005,  1.
 Ωf = 0.1
 tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
@@ -91,20 +91,19 @@ fid_esta = fidelities(c, tfs)
 fid_sta = fidelities(cs, tfs)
 
 plot()
-plot(tfs, fid_esta, label="eSTA", xlim = (0.002, 0.2) )
+plot(tfs, fid_esta, label="eSTA", xlim = (0.02, 0.3) )
 plot!(tfs, fid_sta, label="STA" )
 
-using DelimitedFiles
-some = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid50esta04.dat")
-some2 = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid50sta04.dat")
+some = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid200esta01.dat")
+some2 = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid200sta01.dat")
 
 # plot(tfs, fid_esta, label="eSTA")
 plot!(some[:,1], some[:,2], label="eSTA data", style = :dash)
 plot!(some2[:,1], some2[:,2], label="STA data", style = :dash)
-# savefig("/home/manueloid/Desktop/compare50_04.pdf")
+ savefig("/home/manueloid/Desktop/compare200_01.pdf")
 
-rob_esta = robustnesses(c, tfs, TimeError(1.e-2))
-rob_sta = robustnesses(cs, tfs, TimeError(1.e-2))
+rob_esta = robustnesses(c, tfs, ModError(1.e-7))
+rob_sta = robustnesses(cs, tfs, ModError(1.e-7))
 plot()
 plot(tfs, rob_esta, label="eSTA")
 plot!(tfs, rob_sta, label="STA")

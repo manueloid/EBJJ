@@ -146,13 +146,13 @@ end
 """
     corrections(corr::AbstractArray{Corrs,1})
 Calculate the corrections for the eSTA protocol, given an array of `Corrs` types.
-
 For each of them, it uses the function `EBJJ.Hess` and `EBJJ.v` to calculate the Hessian matrix and the vector `v` respectively, for a given `Corrs` type.
 """
 function corrections(corr::AbstractArray{Corrs,1})
     hess = EBJJ.Hess(corr) |> sum
     v = EBJJ.v(corr) |> sum
-    return -corrections(v, hess)
+    result = - corrections(v, hess)
+    return any(isnan, result) ? zeros(Float64, length(result)) : result
 end
 corrections(n::Int64, c::ControlFull, λs::Int64=5) = corrections(2:2:n, c, λs)
 
