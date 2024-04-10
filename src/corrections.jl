@@ -93,7 +93,7 @@ It returns a vector of `Corrs` types, where each element is the correction for t
 Each `Corrs` variable contains the value of the Gₙ and Kₙ integrals that can then be used to calculate the eSTA corrections.
 """
 function corrections(c::ControlFull)
-    h, Λ, λs, narr = 2.0 / c.N, EBJJ.Λ(c), c.nλ, c.states
+    h, Λ, λs, narr = 2.0 / c.N, 2 * EBJJ.Λ(c), c.nλ, c.states
     # Definition of the auxiliary functions
     b(t) = auxiliary(t, c)
     db(t) = EBJJ.auxiliary_1d(t, c)
@@ -115,7 +115,7 @@ function corrections(c::ControlFull)
                     (2^n * factorial(n))^(-1 / 2) * # Hermite polynomial normalisation term
                     ((-im)^n / h) / abs(f2(t)) * (f2(t) / f2c(t))^(n / 2) * # Fourier transform normalisation term
                     exp(-z^2 / (2 * f2c(t))) * he(n, z * r(t) / abs(f2(t)))
-        rhs_g(z, t) = -Ω(t) * (
+        rhs_g(z, t) = -2 * Ω(t) * (
             bh(z, h) * exp(-(z/h + 1)^2 / (2 * f2(t))) +
             bh(z - h, h) * exp(-(z/h - 1)^2 / (2 * f2(t))) -
             h^2 / 2.0 * sd_groundstate(z, f2(t), h)

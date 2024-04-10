@@ -120,7 +120,7 @@ The control function is defined as
 where b(t) is the auxiliary function.
 """
 function control_function(t::Float64, c::Control)
-    f(t) =  1 / auxiliary(t, c)^4 - auxiliary_2d(t, c) / (2 * auxiliary(t, c) * Λ(c))
+    f(t) =  1 / auxiliary(t, c)^4 - auxiliary_2d(t, c) / (2 * auxiliary(t, c) * c.N * c.U)
     return piecewise(f, t, 0.0, c.T)
 end
 """
