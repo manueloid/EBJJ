@@ -65,7 +65,7 @@ I think though that it does not make sense to define general functions.
 I would rather define the $ G_n $ and $ K_n $ integrals in place, so that I do not have to define a lot of functions that I am not going to use.
 =#
 
-bh(z::Float64, h::Float64) = abs(z) <= 1 ? 0.5 * √((1 + z + h) * (1 - z)) : 0.0 # One-liner function that returns the piecewise function bₕ(z)
+bh(z::Float64, h::Float64) = abs(z) <= 1 ? √((1 + z + h) * (1 - z)) : 0.0 # One-liner function that returns the piecewise function bₕ(z)
 
 """
     gradient(tarray::Array{Float64, 1})
@@ -93,7 +93,8 @@ It returns a vector of `Corrs` types, where each element is the correction for t
 Each `Corrs` variable contains the value of the Gₙ and Kₙ integrals that can then be used to calculate the eSTA corrections.
 """
 function corrections(c::ControlFull)
-    h, Λ, λs, narr = 2.0 / c.N, 2 * EBJJ.Λ(c), c.nλ, c.states
+    N, U = c.N, c.U
+    h, λs, narr = 2.0 / N, c.nλ, c.states
     # Definition of the auxiliary functions
     b(t) = auxiliary(t, c)
     db(t) = EBJJ.auxiliary_1d(t, c)
@@ -101,33 +102,34 @@ function corrections(c::ControlFull)
     Ω(t) = control_function(t, c)
     gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
     grad(t::Float64) = [g(t) for g in gradient_functions]
-    f2(t::Float64) = sqrt(1 / (2Λ)) * 1 / (h * b(t)^2) - im * db(t) / (2Λ * h * b(t))
-    f2c(t::Float64) = sqrt(1 / (2Λ)) * 1 / (h * b(t)^2) + im * db(t) / (2Λ * h * b(t))
+    f2(t::Float64)  = sqrt(N / (2U)) / b(t)^2 - im * db(t) / (2U * b(t))
+    f2c(t::Float64) = sqrt(N / (2U)) / b(t)^2 + im * db(t) / (2U * b(t))
     r(t::Float64) = sqrt(real(f2(t)))
     # Gns = 0.0 + 0.0im           # Variable to store the values gn
     # Kns = zeros(ComplexF64, λs) # Variable to store the value kn
-    imag_phase_integrand(t::Float64) = 2Λ * h * real(f2(t)) # Integrand of the phase factor
+    imag_phase_integrand(t::Float64) = sqrt(2U * N) / b(t)^2
     φ(t::Float64) = quadgk(τ -> imag_phase_integrand(τ), 0.0, t, atol=1e-7)[1]
     corrections = Array{Corrs,1}(undef, length(narr))
     Threads.@threads for i in eachindex(narr)
         n = narr[i]
         lhs(z, t) = (r(t)^2 / pi)^(1 / 2) * # Normalisation term
+                    exp( -im * (n + 1/2) * φ(t)) *
                     (2^n * factorial(n))^(-1 / 2) * # Hermite polynomial normalisation term
                     ((-im)^n / h) / abs(f2(t)) * (f2(t) / f2c(t))^(n / 2) * # Fourier transform normalisation term
                     exp(-z^2 / (2 * f2c(t))) * he(n, z * r(t) / abs(f2(t)))
-        rhs_g(z, t) = -2 * Ω(t) * (
-            bh(z, h) * exp(-(z/h + 1)^2 / (2 * f2(t))) +
-            bh(z - h, h) * exp(-(z/h - 1)^2 / (2 * f2(t))) -
-            h^2 / 2.0 * sd_groundstate(z, f2(t), h)
-        )
+        rhs_g(z, t) = - Ω(t) * (
+                          bh(z, h) * exp(-(z / h + 1)^2 / (2 * f2(t))) +
+                          bh(z - h, h) * exp(-(z / h - 1)^2 / (2 * f2(t))) -
+                          h^2 * sd_groundstate(z, f2(t), h)
+                      )
         rhs_k(z, t) = -grad(t) * (
-            bh(z, h) * exp(-(z/h + 1)^2 / (2 * f2(t))) +
-            bh(z - h, h) * exp(-(z/h - 1)^2 / (2 * f2(t)))
+            bh(z, h) * exp(-(z / h + 1)^2 / (2 * f2(t))) +
+            bh(z - h, h) * exp(-(z / h - 1)^2 / (2 * f2(t)))
         )
-        gn::ComplexF64 = hcubature(var -> lhs(var[1]/h, var[2]) * rhs_g(var[1], var[2]),
+        gn::ComplexF64 = hcubature(var -> lhs(var[1] / h, var[2]) * rhs_g(var[1], var[2]),
             [-6 * r(0.0), 0.0], [6 * r(0.0), c.T],
             atol=1e-7)[1]
-        kn::Vector{ComplexF64} = hcubature(var -> lhs(var[1]/h, var[2]) * rhs_k(var[1], var[2]),
+        kn::Vector{ComplexF64} = hcubature(var -> lhs(var[1] / h, var[2]) * rhs_k(var[1], var[2]),
             [-6 * r(0.0), 0.0], [6 * r(0.0), c.T],
             atol=1e-7)[1]
         corrections[i] = Corrs(c, n, kn, gn)
@@ -151,7 +153,7 @@ For each of them, it uses the function `EBJJ.Hess` and `EBJJ.v` to calculate the
 function corrections(corr::AbstractArray{Corrs,1})
     hess = EBJJ.Hess(corr) |> sum
     v = EBJJ.v(corr) |> sum
-    result = - corrections(v, hess)
+    result = -corrections(v, hess)
     return any(isnan, result) ? zeros(Float64, length(result)) : result
 end
 corrections(n::Int64, c::ControlFull, λs::Int64=5) = corrections(2:2:n, c, λs)
