@@ -109,7 +109,7 @@ colors = (
     red=colorant"#FF0000", # eSTA Full Hamiltonian with Hessian 
     blue=colorant"#0000FF", # eSTA Intermediate Hamiltonian with Hessian
     yellow=colorant"#FFa000", # eSTA Full Hamiltonian with original version
-    green=colorant"#008000"# eSTA Intermediate Hamiltonian original version
+    green=colorant"#018000"# eSTA Intermediate Hamiltonian original version
 )
 styles = (
     solid="solid",                         # eSTA Intermediate Hamiltonian with Hessian
@@ -142,46 +142,42 @@ gr = @pgf GroupPlot(
         xtick_distance = "$(c.T/2)",
         width = "0.5\\textwidth",
         height = "0.25\\textwidth",
-        ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
+        ylabel_style = "at ={(rel axis cs: -0.18,0.4)}",
         clip = false,
     },
     {
         ylabel = "\$\\Lambda\$(t)",
-        "extra_description/.code = { \\node at (rel axis cs: -.25,1.2) {(a)};}",
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(a)};}"
     },
     # Control function
     Plot(esta_opt, Table(ts, cf_esta)),
     Plot(sta_opt, Table(ts, cf_sta)),
     Plot(ad_opt, Table(ts, cf_ad)),
-    [raw"\node at (rel axis cs:-.25,1) {(a)};"],
     # ξ Squeezing
     {
         ylabel = "\$\\xi_N^2\$ ",
-        "extra_description/.code = { \\node at (rel axis cs: -.25,1.2) {(b)};}",
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(b)};}"
     },
     Plot(esta_opt, Table(ts, todecibel.(ξN_esta))),
     Plot(sta_opt, Table(ts, todecibel.(ξN_sta))),
     Plot(ad_opt, Table(ts, todecibel.(ξN_ad))),
-    [raw"\node at (rel axis cs:-.25,1) {(b)};"],
     # α Squeezing
     {
         ylabel = "\$\\xi_s^2\$ ",
-        "extra_description/.code = { \\node at (rel axis cs: -.25,1.2) {(c)};}",
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(c)};}"
     },
     Plot(esta_opt, Table(ts, ξs_esta)),
     Plot(sta_opt, Table(ts, ξs_sta)),
     Plot(ad_opt, Table(ts, ξs_ad)),
-    [raw"\node at (rel axis cs:-.25,1) {(c)};"],
     # Fidelity
     {
         ylabel = "\$F\$",
         xlabel = "\$\\chi t\$",
         ymin = min(fid_esta...),  ymax = 1.0,
-        "extra_description/.code = { \\node at (rel axis cs: -.25,1.2) {(d)};}",
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(d)};}"
     },
     Plot(esta_opt, Table(ts, fid_esta)),
     Plot(sta_opt, Table(ts, fid_sta)),
     Plot(ad_opt, Table(ts, fid_ad)),
-    [raw"\node at (rel axis cs:-.25,1) {(d)};"],
     )
 display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/gfx/evolution.pdf", gr)

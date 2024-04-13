@@ -59,9 +59,13 @@ gr = @pgf GroupPlot(
         # ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
         # clip = false,
     },
-    {ymax = 1, xmin = 0.01,xmax = 0.15, ylabel = raw"$S_m$"},
+    {ymax = 1, xmin = 0.01,xmax = 0.15, ylabel = raw"$S_m$",
+    raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(a)};}"
+    },
     amp_plots,
-    {ymax = 1, xmin = 0.01,xmax = 0.15, ylabel = raw"$S_t$", xlabel = raw"$\chi t$"},
+    {ymax = 1, xmin = 0.01,xmax = 0.15, ylabel = raw"$S_t$", xlabel = raw"$\chi t$",
+    raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(b)};}"
+    },
     time_plots
 )
 display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/gfx/sensitivity.pdf", gr)
