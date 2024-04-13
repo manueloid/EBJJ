@@ -1,12 +1,10 @@
 using DelimitedFiles, PGFPlotsX, Colors
-path = homedir() * "/Repos/ExternalBJJ/data/fidelity/"
+path = homedir() * "/Repos/ExternalBJJ/data/sensitivity/"
 filenames = readdir(path)
 files = path .* filenames
-pattern = r"nfid(\d+)([a-zA-Z]+)(\d+)\.dat"
-match_result = match(pattern, files[2])
-match_result.captures
-fileloc(nn, type, u) = path * "nfid" * string(nn) * type * replace(string(u), "." => "") * ".dat"
-types = ["estaX", "sta", "staX", "refl"]
+errtypes = ["time", "amp"]
+amp_files = filter(file -> occursin("amp", file), files)
+time_files = filter(file -> occursin("time", file), files)
 
 colors = (
     black=colorant"#000000", # STA	
@@ -27,31 +25,22 @@ esta_opt = @pgf {color = colors.red, line_width = 1, style = styles.solid}
 sta_opt = @pgf{color = colors.black, line_width = 1, style = styles.dash}
 ad_opt = @pgf {color = colors.green, line_width = 1, style = styles.dot_dash}
 extra_opt = @pgf {color = colors.yellow, line_width = 1, style = styles.ldash}
-styles_plot = [esta_opt, sta_opt, extra_opt, ad_opt]
+styles_plot = [esta_opt, sta_opt, extra_opt]
 
-PGFPlotsX.enable_interactive(false)
-function plottering(nn, uu)
-    plots, ymin = [], 0.0
-    for (type, style) in zip(types, styles_plot)
-        file = fileloc(nn, type, uu)
-        data = readdlm(file)
-        plot = @pgf Plot(style, Table(data[1:end-58, 1], data[1:end-58, 2]))
-        push!(plots, plot)
-        ymin = data[:, 2][1]
-    end
-    println(ymin)
-    push!(plots, ["\\node at (rel axis cs:.85,0.3) {\$ N = $nn \$};"])
-    push!(plots, ["\\node at (rel axis cs:.85,0.2) {\$ \\Lambda = $( nn * uu / 2) \$};"])
-    ax = @pgf Axis({ymin = ymin}, plots)
-    return ax
+amp_plots, time_plots = [], []
+for (amp, time, style) in zip(amp_files, time_files, styles_plot)
+    data = readdlm(amp)
+    plot = @pgf Plot(style, Table(data[:, 1], data[:, 2]))
+    push!(amp_plots, plot)
+    data = readdlm(time)
+    plot = @pgf Plot(style, Table(data[:, 1], data[:, 2]))
+    push!(time_plots, plot)
 end
-xlabel = @pgf {xlabel = raw"$\chi t$"}
-ylabel = @pgf {ylabel = "F"}
-xmax(val) = @pgf {xmax = val}
+
 gr = @pgf GroupPlot(
     {
         group_style = {
-            group_size = " 3 by 3",
+            group_size = " 1 by 2",
             vertical_sep = "10pt",
             horizontal_sep = "10pt",
             xticklabels_at = "edge bottom",
@@ -62,25 +51,17 @@ gr = @pgf GroupPlot(
         enlarge_y_limits = "0.01",
         enlarge_x_limits = "false",
         ticklabel_style = "/pgf/number format/fixed",
-        max_space_between_ticks = "60pt",
+        max_space_between_ticks = "84pt",
         try_min_ticks = 4,
         # xtick_distance = "$(c.T/2)",
-        # width = "0.5\\textwidth",
-        # height = "0.25\\textwidth",
-        ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
+        width = "\\textwidth",
+        height = "0.5\\textwidth",
+        # ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
         # clip = false,
     },
-    merge!(plottering(50, 0.4), ylabel),
-    plottering(200, 0.1),
-    plottering(400, 0.05),
-    # Second row
-    merge!(plottering(50, 0.2), ylabel),
-    plottering(200, 0.05),
-    plottering(400, 0.025),
-    # Third row
-    merge!(plottering(50, 0.1), ylabel, xlabel),
-    merge!(plottering(200, 0.025), xlabel),
-    merge!(plottering(400, 0.0125), xlabel)
+    {ymax = 1, xmin = 0.01,xmax = 0.15, ylabel = raw"$S_m$"},
+    amp_plots,
+    {ymax = 1, xmin = 0.01,xmax = 0.15, ylabel = raw"$S_t$", xlabel = raw"$\chi t$"},
+    time_plots
 )
-display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/gfx/fidelity.pdf", gr)
-
+display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/gfx/sensitivity.pdf", gr)

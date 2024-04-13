@@ -80,7 +80,7 @@ c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
 
-time = 0.0:c.T/1000:c.T
+ts = 0.0:c.T/1000:c.T
 ξN_sta = squeezing_ξ(q, cs)
 ξN_esta = squeezing_ξ(q, c)
 ξN_ad = squeezing_ξ(q, cs, linear = true)
@@ -96,10 +96,10 @@ fid_ad = fidelity_evo(q, cs, linear = true)
 begin 
     corrs = corrections(corrections(c))
     Ω(t) = control_function(t, c, corrs)
-    cf_esta = Ω.(time)
+    cf_esta = Ω.(ts)
 end
-cf_sta = control_function.(time, Ref(cs))
-cf_ad = l.(time, Ref(cs))
+cf_sta = control_function.(ts, Ref(cs))
+cf_ad = l.(ts, Ref(cs))
 
 
 # Style and plotting
@@ -150,27 +150,27 @@ gr = @pgf GroupPlot(
         "extra_description/.code = { \\node at (rel axis cs: -.25,1.2) {(a)};}",
     },
     # Control function
-    Plot(esta_opt, Table(time, cf_esta)),
-    Plot(sta_opt, Table(time, cf_sta)),
-    Plot(ad_opt, Table(time, cf_ad)),
+    Plot(esta_opt, Table(ts, cf_esta)),
+    Plot(sta_opt, Table(ts, cf_sta)),
+    Plot(ad_opt, Table(ts, cf_ad)),
     [raw"\node at (rel axis cs:-.25,1) {(a)};"],
     # ξ Squeezing
     {
         ylabel = "\$\\xi_N^2\$ ",
         "extra_description/.code = { \\node at (rel axis cs: -.25,1.2) {(b)};}",
     },
-    Plot(esta_opt, Table(time, todecibel.(ξN_esta))),
-    Plot(sta_opt, Table(time, todecibel.(ξN_sta))),
-    Plot(ad_opt, Table(time, todecibel.(ξN_ad))),
+    Plot(esta_opt, Table(ts, todecibel.(ξN_esta))),
+    Plot(sta_opt, Table(ts, todecibel.(ξN_sta))),
+    Plot(ad_opt, Table(ts, todecibel.(ξN_ad))),
     [raw"\node at (rel axis cs:-.25,1) {(b)};"],
     # α Squeezing
     {
         ylabel = "\$\\xi_s^2\$ ",
         "extra_description/.code = { \\node at (rel axis cs: -.25,1.2) {(c)};}",
     },
-    Plot(esta_opt, Table(time, ξs_esta)),
-    Plot(sta_opt, Table(time, ξs_sta)),
-    Plot(ad_opt, Table(time, ξs_ad)),
+    Plot(esta_opt, Table(ts, ξs_esta)),
+    Plot(sta_opt, Table(ts, ξs_sta)),
+    Plot(ad_opt, Table(ts, ξs_ad)),
     [raw"\node at (rel axis cs:-.25,1) {(c)};"],
     # Fidelity
     {
@@ -179,9 +179,9 @@ gr = @pgf GroupPlot(
         ymin = min(fid_esta...),  ymax = 1.0,
         "extra_description/.code = { \\node at (rel axis cs: -.25,1.2) {(d)};}",
     },
-    Plot(esta_opt, Table(time, fid_esta)),
-    Plot(sta_opt, Table(time, fid_sta)),
-    Plot(ad_opt, Table(time, fid_ad)),
+    Plot(esta_opt, Table(ts, fid_esta)),
+    Plot(sta_opt, Table(ts, fid_sta)),
+    Plot(ad_opt, Table(ts, fid_ad)),
     [raw"\node at (rel axis cs:-.25,1) {(d)};"],
     )
-display("/tmp/evolution.pdf", gr)
+display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/gfx/evolution.pdf", gr)
