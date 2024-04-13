@@ -143,4 +143,3 @@ function control_function(t::Float64, c::Control, correction_vector::Array{Float
     J_corr(t::Float64) = control_function(t, c) + correction_polyin(t, c, correction_vector)
     return piecewise(J_corr, t, 0.0, c.T)
 end
-control_function(t::Float64, c::ControlFull) = control_function(t, c, corrections(corrections(c)))
