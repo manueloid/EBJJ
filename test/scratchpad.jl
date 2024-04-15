@@ -80,7 +80,7 @@ max_state = 2
 nλ = 2
 U = .4
 N = 50
-t0, tf = 0.005,  1.
+t0, tf = 0.005,  .1
 Ωf = 0.1
 tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
@@ -104,3 +104,62 @@ rob_sta = robustnesses(cs, tfs, ModError(1.e-7))
 plot()
 plot(tfs, rob_esta, label="eSTA")
 plot!(tfs, rob_sta, label="STA")
+
+
+using ForwardDiff, EBJJ
+function auxiliary2(t, tf,bt0::Float64, btf::Float64, ddb0::Float64, ddbf::Float64)
+    b(t) = bt0 + ( t/tf )^2 * ( 
+        ddb0 / 2 + (
+            - bt0 + btf - ddb0 / 2 + 
+            (3 * bt0 - 3 * btf + ddb0 / 2 + 
+                (- 6 * bt0 + 6 * btf - ddb0 / 2 + ddbf / 2) * ( -1 + (t/tf))
+             ) * ( -1 + (t/tf)) * t/tf))
+    return b(t)
+end
+b0(c::Control) = (1 + 2 / (c.N * c.U))^(1/4)
+bf(c::Control) = (1 / c.Ωf * ( 1 + 2 / (c.N * c.U * c.Ωf)))^(1/4) 
+ddb0(c::Control) = -4*c.T^2 * (c.N * c.U / ( 2 + c.N * c.U))^(3/4)
+ddbf(c::Control) = -4 * c.Ωf * c.T^2 * (c.N * c.U * c.Ωf / ( 2 * c.Ωf + c.N * c.U))^(3/4)
+b(t, c::Control) = auxiliary2(t, c.T, b0(c), bf(c), ddb0(c), ddbf(c))
+b(t) = b(t, c)
+db(t) = ForwardDiff.derivative(b, t)
+ddb(t) = ForwardDiff.derivative(db, t)
+
+"""
+    control_function(t::Float64, c::Control)
+Return the control function `J(t)` at time `t` given the control parameter `c`.
+The control function is defined as
+    J(t) = J₀ / b(t)⁴ - b̈(t) / (2 b(t) U N)
+where b(t) is the auxiliary function.
+"""
+function control_function2(t, c::Control)
+    b(t, c::Control) = auxiliary2(t, c.T, b0(c), bf(c), ddb0(c), ddbf(c))
+    b(t) = b(t, c)
+    db(t) = ForwardDiff.derivative(b, t)
+    ddb(t) = ForwardDiff.derivative(db, t)
+    f(t) =  1 / b(t)^4 - ddb(t) / (2 * b(t) * c.N * c.U)
+    return EBJJ.piecewise(f, t, 0.0, c.T)
+end
+J(t) = control_function2(t, c)
+J(c.T) 
+
+using Plots
+ts = range(0.0, c.T, length=100)
+b(0), b(c.T)
+plot(ts, b.(ts, Ref(c)))
+plot!(ts, db.(ts))
+plot!(ts, ddb.(ts))
+plot!(ts, J.(ts))
+J(.0)
+bf(c)
+
+some(t) = EBJJ.auxiliary(t,c)
+somed(t) = EBJJ.auxiliary_1d(t,c)
+somedd(t) = EBJJ.auxiliary_2d(t,c)
+hellod(t) = ForwardDiff.derivative(some, t)
+hellodd(t) = ForwardDiff.derivative(hellod, t)
+plot(ts, some.(ts))
+plot!(ts, somed.(ts))
+plot!(ts, somedd.(ts))
+plot!(ts, hellod.(ts))
+plot!(ts, hellodd.(ts))

@@ -70,7 +70,7 @@ piecewise(f::Function, t, interval::AbstractVector{Number}) = piecewise(f, t, in
     auxiliary(t, tf::Float64, σ::Float64) 
 Return the value of the auxiliary function `b(t)` at time `t` given the final time `tf` and the parameter `σ`.
 """
-function auxiliary(t::Float64, tf::Float64, σ::Float64)
+function auxiliary(t, tf::Float64, σ::Float64)
     b(t) = 1 +
            10 * (σ - 1) * (t / tf)^3 -
            15 * (σ - 1) * (t / tf)^4 +
@@ -82,7 +82,7 @@ end
 Return the value of the auxiliary function at time `t` given the control parameter `c`.
 It internally defines the parameter `σ` as `σ = (J0 / Jf)^0.25 givent the control parameter `c`.
 """
-function auxiliary(t::Float64, c::Control)
+function auxiliary(t, c::Control)
     σ = (1/c.Ωf)^0.25 # calculate the value of σ, given the boundary conditions
     return auxiliary(t, c.T, σ) # return the value of the auxiliary function
 end
