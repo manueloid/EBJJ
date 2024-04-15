@@ -66,21 +66,21 @@ function fidelity_evo(q::ConstantQuantity, c::ControlFull)
     return timeevolution.schroedinger_dynamic([0.0:c.T/1000:c.T;], q.ψ0, H; fout = fid)[2]
 end
 
-
 # Data generation 
 
 max_state = 2
 nλ = 2
-U = 2.
-N = 10
-t0, tf = 0.005, 0.5 
+U = 0.1
+N = 50
+t0, tf = 0.005, 1.0
 Ωf = 0.1
 tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
 
-ts = 0.0:c.T/1000:c.T
+tf = c.T * U
+ts = 0.0:tf/1000:tf
 ξN_sta = squeezing_ξ(q, cs)
 ξN_esta = squeezing_ξ(q, c)
 ξN_ad = squeezing_ξ(q, cs, linear = true)
@@ -96,12 +96,10 @@ fid_ad = fidelity_evo(q, cs, linear = true)
 begin 
     corrs = corrections(corrections(c))
     Ω(t) = control_function(t, c, corrs)
-    cf_esta = Ω.(ts)
+    cf_esta = Ω.(0.0:c.T/1000:c.T)
 end
-cf_sta = control_function.(ts, Ref(cs))
-cf_ad = l.(ts, Ref(cs))
-
-
+cf_sta = control_function.(0.0:c.T/1000:c.T, Ref(cs))
+cf_ad = l.(0.0:c.T/1000:c.T, Ref(cs))
 # Style and plotting
 using PGFPlotsX, Colors
 colors = (
@@ -109,7 +107,7 @@ colors = (
     red=colorant"#FF0000", # eSTA Full Hamiltonian with Hessian 
     blue=colorant"#0000FF", # eSTA Intermediate Hamiltonian with Hessian
     yellow=colorant"#FFa000", # eSTA Full Hamiltonian with original version
-    green=colorant"#018000"# eSTA Intermediate Hamiltonian original version
+    green=colorant"#008000"# eSTA Intermediate Hamiltonian original version
 )
 styles = (
     solid="solid",                         # eSTA Intermediate Hamiltonian with Hessian
@@ -124,12 +122,11 @@ sta_opt = @pgf{color = colors.black, line_width = 1, style = styles.dash}
 ad_opt = @pgf {color = colors.green, line_width = 1, style = styles.dot_dash}
 extra_opt = @pgf {color = colors.yellow, line_width = 1, style = styles.ldash}
 styles_plot = [esta_opt, sta_opt, ad_opt, extra_opt]
-
 PGFPlotsX.enable_interactive(false)
 gr = @pgf GroupPlot(
     {
         group_style = { 
-            group_size = " 1 by 4",
+            group_size = " 1 by 3",
             vertical_sep = "10pt",
             xticklabels_at = "edge bottom",
             xlabels_at = "edge bottom"
@@ -139,32 +136,24 @@ gr = @pgf GroupPlot(
         ticklabel_style = "/pgf/number format/fixed",
         max_space_between_ticks = "40pt",
         try_min_ticks = 3,
-        xtick_distance = "$(c.T/2)",
-        width = "0.5\\textwidth",
-        height = "0.25\\textwidth",
-        ylabel_style = "at ={(rel axis cs: -0.18,0.4)}",
+        xtick_distance = "$(tf/2)",
+        width = "\\textwidth",
+        height = "0.5\\textwidth",
+        # ylabel_style = "at ={(rel axis cs: -0.08,0.4)}",
         clip = false,
     },
     {
-        ylabel = "\$\\Lambda\$(t)",
-        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(a)};}"
+        ylabel = "\$\\Omega\$(t)",
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(a)};}"
     },
     # Control function
     Plot(esta_opt, Table(ts, cf_esta)),
     Plot(sta_opt, Table(ts, cf_sta)),
     Plot(ad_opt, Table(ts, cf_ad)),
-    # ξ Squeezing
-    {
-        ylabel = "\$\\xi_N^2\$ ",
-        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(b)};}"
-    },
-    Plot(esta_opt, Table(ts, todecibel.(ξN_esta))),
-    Plot(sta_opt, Table(ts, todecibel.(ξN_sta))),
-    Plot(ad_opt, Table(ts, todecibel.(ξN_ad))),
     # α Squeezing
     {
         ylabel = "\$\\xi_s^2\$ ",
-        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(c)};}"
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(b)};}"
     },
     Plot(esta_opt, Table(ts, ξs_esta)),
     Plot(sta_opt, Table(ts, ξs_sta)),
@@ -174,10 +163,10 @@ gr = @pgf GroupPlot(
         ylabel = "\$F\$",
         xlabel = "\$\\chi t\$",
         ymin = min(fid_esta...),  ymax = 1.0,
-        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(d)};}"
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(c)};}"
     },
     Plot(esta_opt, Table(ts, fid_esta)),
     Plot(sta_opt, Table(ts, fid_sta)),
     Plot(ad_opt, Table(ts, fid_ad)),
     )
-display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/gfx/evolution.pdf", gr)
+display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_2_evolution.pdf", gr)

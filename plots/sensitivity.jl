@@ -11,7 +11,7 @@ colors = (
     red=colorant"#FF0000", # eSTA Full Hamiltonian with Hessian 
     blue=colorant"#0000FF", # eSTA Intermediate Hamiltonian with Hessian
     yellow=colorant"#FFa000", # eSTA Full Hamiltonian with original version
-    green=colorant"#008000"# eSTA Intermediate Hamiltonian original version
+    green=colorant"#018000"# eSTA Intermediate Hamiltonian original version
 )
 styles = (
     solid="solid",                         # eSTA Intermediate Hamiltonian with Hessian
@@ -52,19 +52,20 @@ gr = @pgf GroupPlot(
         enlarge_x_limits = "false",
         ticklabel_style = "/pgf/number format/fixed",
         max_space_between_ticks = "84pt",
-        try_min_ticks = 4,
+        try_min_ticks = 3,
         # xtick_distance = "$(c.T/2)",
         width = "\\textwidth",
         height = "0.5\\textwidth",
         # ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
+        ylabel_style = "at ={(rel axis cs: -0.08,0.4)}",
         # clip = false,
     },
     {ymax = 1, xmin = 0.01,xmax = 0.15, ylabel = raw"$S_m$",
-    raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(a)};}"
+    raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(a)};}"
     },
     amp_plots,
     {ymax = 1, xmin = 0.01,xmax = 0.15, ylabel = raw"$S_t$", xlabel = raw"$\chi t$",
-    raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(b)};}"
+    raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(b)};}"
     },
     time_plots
 )

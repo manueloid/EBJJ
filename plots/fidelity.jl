@@ -40,8 +40,8 @@ function plottering(nn, uu)
         ymin = data[:, 2][1]
     end
     println(ymin)
-    push!(plots, ["\\node at (rel axis cs:.85,0.3) {\$ N = $nn \$};"])
-    push!(plots, ["\\node at (rel axis cs:.85,0.2) {\$ \\Lambda = $( nn * uu / 2) \$};"])
+    push!(plots, ["\\node at (rel axis cs:.8,0.25) {\$ N = $nn \$};"])
+    push!(plots, ["\\node at (rel axis cs:.8,0.15) {\$ \\Lambda = $( nn * uu / 2) \$};"])
     ax = @pgf Axis({ymin = ymin}, plots)
     return ax
 end
@@ -65,9 +65,9 @@ gr = @pgf GroupPlot(
         max_space_between_ticks = "60pt",
         try_min_ticks = 4,
         # xtick_distance = "$(c.T/2)",
-        # width = "0.5\\textwidth",
-        # height = "0.25\\textwidth",
-        ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
+        # width = "0.25\\textwidth",
+        # height = ".5\\textwidth",
+        # ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
         # clip = false,
     },
     merge!(plottering(50, 0.4), ylabel),
@@ -82,5 +82,6 @@ gr = @pgf GroupPlot(
     merge!(plottering(200, 0.025), xlabel),
     merge!(plottering(400, 0.0125), xlabel)
 )
-display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/gfx/fidelity.pdf", gr)
+gr = @pgf TikzPicture({scale = 3}, gr) 
+display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_3_fidelity.pdf", gr)
 
