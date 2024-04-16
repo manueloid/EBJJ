@@ -101,7 +101,7 @@ max_state = 2
 nλ = 2
 U = 0.4
 N = 50
-t0, tf = 0.005, 0.4
+t0, tf = 0.005, 0.05
 Ωf = 0.1
 tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
@@ -126,7 +126,6 @@ fid_staX = fidelity_evoX(q, cs)
 ξs_sta = todecibel.(ξN_sta .^ 2 ./ (α_sta .^ 2))
 ξs_ad = todecibel.(ξN_ad .^ 2 ./ (α_ad .^ 2))
 ξs_staX = todecibel.(ξN_staX .^ 2 ./ (α_staX .^ 2))
-
 begin 
     corrs = corrections(corrections(c))
     Ω(t) = control_functionX(t, c, corrs)
@@ -137,6 +136,7 @@ cf_ad = l.(0.0:c.T/1000:c.T, Ref(cs))
 cf_staX = control_functionX.(0.0:c.T/1000:c.T, Ref(cs))
 # Style and plotting
 using PGFPlotsX, Colors
+
 colors = (
     black=colorant"#000000", # STA	
     red=colorant"#FF0000", # eSTA Full Hamiltonian with Hessian 
@@ -171,7 +171,12 @@ gr = @pgf GroupPlot(
         ticklabel_style = "/pgf/number format/fixed",
         max_space_between_ticks = "40pt",
         try_min_ticks = 3,
-        xtick_distance = "$(tf/2)",
+        xtick_distance = "$(tf/3)",
+        xticklabel_style = {
+            "scaled ticks=false",
+            "/pgf/number format/fixed", 
+            "/pgf/number format/precision=3",
+            },
         width = "\\textwidth",
         height = "0.5\\textwidth",
         # ylabel_style = "at ={(rel axis cs: -0.08,0.4)}",
@@ -199,7 +204,7 @@ gr = @pgf GroupPlot(
     {
         ylabel = "\$F\$",
         xlabel = "\$\\chi t\$",
-        ymin = min(fid_esta...),  ymax = 1.0,
+        ymin = min(fid_sta...),  ymax = 1.0,
         raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(c)};}"
     },
     Plot(esta_opt, Table(ts, fid_esta)),

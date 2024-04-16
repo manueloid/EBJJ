@@ -42,7 +42,7 @@ function plottering(nn, uu)
     end
     println(ymin)
     # push!(plots, ["\\node at (rel axis cs:.8,0.85) {\$ N = $nn \$};"])
-    push!(plots, ["\\node at (rel axis cs:.8,0.85) {\$ \\Lambda = $( nn * uu / 2) \$};"])
+    push!(plots, ["\\node at (rel axis cs:.8,0.85) {\$ \\Lambda_0 = $( nn * uu / 2) \$};"])
     ax = @pgf Axis({ymin = ymin}, plots)
     return ax
 end
@@ -88,6 +88,5 @@ gr = @pgf GroupPlot(
     merge!(plottering(200, 0.025), xlabel),
     merge!(plottering(400, 0.0125), xlabel)
 )
-gr = @pgf TikzPicture({scale = 3}, gr) 
 display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_3_fidelity.pdf", gr)
 
