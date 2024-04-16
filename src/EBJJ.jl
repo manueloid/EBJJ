@@ -36,7 +36,9 @@ export Λ
 
 include("polynomials.jl")
 export auxiliary
+export auxiliaryX
 export control_function
+export control_functionX
 
 include("wavefunction.jl")
 export sd_groundstate

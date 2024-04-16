@@ -143,3 +143,41 @@ function control_function(t::Float64, c::Control, correction_vector::Array{Float
     J_corr(t::Float64) = control_function(t, c) + correction_polyin(t, c, correction_vector)
     return piecewise(J_corr, t, 0.0, c.T)
 end
+"""
+    auxiliaryX(s,b0::Float64, bf::Float64, ddb0::Float64, ddbf::Float64)
+Return the auxiliary function but for the enhanced version of the eSTA protocol
+"""
+function auxiliaryX(s,b0::Float64, bf::Float64, ddb0::Float64, ddbf::Float64)
+    b(s) = 
+    b0 + 0.5s^2 * (
+        -ddb0 * (s - 1)^3 + 20 * (bf - b0) * s 
+        + s*(ddbf * (s - 1)^2 + 6 * (b0 - bf) * (5 - 2s) * s))
+    return b(s)
+end
+"""
+    control_functionX(t, c::Control)
+Return the value of the auxiliary function for the enhanced eSTA protocol.
+"""
+function control_functionX(t, c::Control)
+    b0(c::Control) = (1 + 2 / (c.N * c.U))^(1/4)
+    bf(c::Control) = ((1 + (2c.Ωf / (c.N * c.U))) / c.Ωf)^(1/4)
+    ddb0(c::Control) = -4c.T^2 * (c.N * c.U / ( 2 + c.N * c.U))^(3/4)
+    ddbf(c::Control) = -4c.Ωf* c.T^2 *(c.N * c.U * c.Ωf / ( 2c.Ωf + c.N*c.U))^(3/4)
+    b(t, c::Control) = auxiliaryX(t, b0(c), bf(c), ddb0(c), ddbf(c))
+    b(t) = b(t / c.T, c)
+    db(t) = ForwardDiff.derivative(b, t)
+    ddb(t) = ForwardDiff.derivative(db, t)
+    f(t) =  1 / b(t)^4 - ddb(t) / (2b(t) * c.N * c.U)
+    return EBJJ.piecewise(f, t, 0.0, c.T)
+    return f(t)
+end
+"""
+    function control_functionX(t, c::Control, correction_vector::Array{Float64,1})
+Return the control function given the calculated the correction vector, this is going to be used to evaluate the features of eSTAX 
+"""
+function control_functionX(t, c::Control, correction_vector::Array{Float64,1})
+    J_corr(t) = control_functionX(t, c) + correction_polyin(t, c, correction_vector)
+    return piecewise(J_corr, t, 0.0, c.T)
+end
+
+
