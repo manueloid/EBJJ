@@ -1,5 +1,4 @@
 using EBJJ, QuantumOptics
-
 todecibel(x) = 10 * log10(x)
 l(t, c::ControlSTA) = 1 + ( c.Ωf  - 1) * t / c.T
 """
@@ -8,6 +7,16 @@ Returns the evolution of the squeezing parameter `ξN = ΔJz² / (N/4)` from tim
 """
 function squeezing_ξ(q::ConstantQuantity, c::ControlSTA; linear::Bool = false)
     Ω(t) = linear ? l(t, c) : control_function(t, c)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    ΔJ(t, psi) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
+    return timeevolution.schroedinger_dynamic([0.0:c.T/1000:c.T;], q.ψ0, H; fout=ΔJ)[2]
+end
+"""
+    squeezing_ξX(q::ConstantQuantity, c::ControlSTA)
+Returns the evolution of the squeezing parameter `ξN = ΔJz² / (N/4)` from time 0 to final time `c.T`, for the X protocol of the STA control.
+"""
+function squeezing_ξX(q::ConstantQuantity, c::ControlSTA)
+    Ω(t) = control_functionX(t, c)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     ΔJ(t, psi) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
     return timeevolution.schroedinger_dynamic([0.0:c.T/1000:c.T;], q.ψ0, H; fout=ΔJ)[2]
@@ -34,6 +43,16 @@ function squeezing_α(q::ConstantQuantity, c::ControlSTA; linear::Bool = false)
     return timeevolution.schroedinger_dynamic([0.0:c.T/1000:c.T;], q.ψ0, H; fout=squeezing)[2]
 end
 """
+    squeezing_αX(q::ConstantQuantity, c::ControlSTA)
+Returns the evolution of the squeezing parameter `α = ⟨ψ| 2Jₓ/N|ψ⟩` from time 0 to final time `c.T` and for the X version of the STA protocol
+"""
+function squeezing_αX(q::ConstantQuantity, c::ControlSTA)
+    Ω(t) = control_functionX(t, c)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    squeezing(t, psi) = 2 / N * dagger(psi) * q.Jx * psi |> real
+    return timeevolution.schroedinger_dynamic([0.0:c.T/1000:c.T;], q.ψ0, H; fout=squeezing)[2]
+end
+"""
     α(q::ConstantQuantity, c::ControlFull)
 Returns the evolution of the squeezing parameter `α = ⟨ψ| 2Jₓ/N|ψ⟩` from time 0 to final time `c.T`.
 """
@@ -55,12 +74,22 @@ function fidelity_evo(q::ConstantQuantity, c::ControlSTA; linear::Bool = false)
     return timeevolution.schroedinger_dynamic([0.0:c.T/1000:c.T;], q.ψ0, H; fout = fid)[2]
 end
 """
+    fidelity_evoX(q::ConstantQuantity, c::ControlSTA)
+Returns the evolution of the fidelity from time 0 to final time `c.T` and for the X protocol of the STA control.
+"""
+function fidelity_evoX(q::ConstantQuantity, c::ControlSTA)
+    Ω(t) = control_functionX(t, c)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
+    return timeevolution.schroedinger_dynamic([0.0:c.T/1000:c.T;], q.ψ0, H; fout = fid)[2]
+end
+"""
     fidelity_evo(q::ConstantQuantity, c::ControlFull)
 Returns the evolution of the fidelity from time 0 to final time `c.T`.
 """
 function fidelity_evo(q::ConstantQuantity, c::ControlFull)
     corrs = corrections(corrections(c))
-    Ω(t) = control_function(t, c, corrs)
+    Ω(t) = control_functionX(t, c, corrs)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
     return timeevolution.schroedinger_dynamic([0.0:c.T/1000:c.T;], q.ψ0, H; fout = fid)[2]
@@ -70,9 +99,9 @@ end
 
 max_state = 2
 nλ = 2
-U = 0.1
+U = 0.4
 N = 50
-t0, tf = 0.005, 1.0
+t0, tf = 0.005, 0.4
 Ωf = 0.1
 tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
@@ -84,22 +113,28 @@ ts = 0.0:tf/1000:tf
 ξN_sta = squeezing_ξ(q, cs)
 ξN_esta = squeezing_ξ(q, c)
 ξN_ad = squeezing_ξ(q, cs, linear = true)
+ξN_staX = squeezing_ξX(q, cs)
 α_sta = squeezing_α(q, cs)
 α_esta = squeezing_α(q, c)
 α_ad = squeezing_α(q, cs, linear = true)
+α_staX = squeezing_α(q, cs, linear = true)
 fid_sta = fidelity_evo(q, cs)
 fid_esta = fidelity_evo(q, c)
 fid_ad = fidelity_evo(q, cs, linear = true)
+fid_staX = fidelity_evoX(q, cs)
 ξs_esta = todecibel.(ξN_esta .^ 2 ./ (α_esta .^ 2))
 ξs_sta = todecibel.(ξN_sta .^ 2 ./ (α_sta .^ 2))
 ξs_ad = todecibel.(ξN_ad .^ 2 ./ (α_ad .^ 2))
+ξs_staX = todecibel.(ξN_staX .^ 2 ./ (α_staX .^ 2))
+
 begin 
     corrs = corrections(corrections(c))
-    Ω(t) = control_function(t, c, corrs)
+    Ω(t) = control_functionX(t, c, corrs)
     cf_esta = Ω.(0.0:c.T/1000:c.T)
 end
 cf_sta = control_function.(0.0:c.T/1000:c.T, Ref(cs))
 cf_ad = l.(0.0:c.T/1000:c.T, Ref(cs))
+cf_staX = control_functionX.(0.0:c.T/1000:c.T, Ref(cs))
 # Style and plotting
 using PGFPlotsX, Colors
 colors = (
@@ -150,6 +185,7 @@ gr = @pgf GroupPlot(
     Plot(esta_opt, Table(ts, cf_esta)),
     Plot(sta_opt, Table(ts, cf_sta)),
     Plot(ad_opt, Table(ts, cf_ad)),
+    Plot(extra_opt, Table(ts, cf_staX)),
     # α Squeezing
     {
         ylabel = "\$\\xi_s^2\$ ",
@@ -158,6 +194,7 @@ gr = @pgf GroupPlot(
     Plot(esta_opt, Table(ts, ξs_esta)),
     Plot(sta_opt, Table(ts, ξs_sta)),
     Plot(ad_opt, Table(ts, ξs_ad)),
+    Plot(extra_opt, Table(ts, ξs_staX)),
     # Fidelity
     {
         ylabel = "\$F\$",
@@ -168,5 +205,6 @@ gr = @pgf GroupPlot(
     Plot(esta_opt, Table(ts, fid_esta)),
     Plot(sta_opt, Table(ts, fid_sta)),
     Plot(ad_opt, Table(ts, fid_ad)),
+    Plot(extra_opt, Table(ts, fid_staX)),
     )
 display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_2_evolution.pdf", gr)

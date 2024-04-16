@@ -112,7 +112,7 @@ Returns the fidelity of the eSTA approach when the corrections have already been
 """
 function fidelity(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error=Error(0.0, 0.0))
     ε, δ = e.mod_err, e.time_err
-    Ω(t) = control_function(t + δ, c, corrs) * (1 + ε)
+    Ω(t) = control_functionX(t + δ, c, corrs) * (1 + ε)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
     return timeevolution.schroedinger_dynamic([0.0, c.T], q.ψ0, H; fout=fid)[2][end]

@@ -30,10 +30,10 @@ styles_plot = [esta_opt, sta_opt, extra_opt]
 amp_plots, time_plots = [], []
 for (amp, time, style) in zip(amp_files, time_files, styles_plot)
     data = readdlm(amp)
-    plot = @pgf Plot(style, Table(data[:, 1], data[:, 2]))
+    plot = @pgf Plot(style, Table(data[:, 1] .* 0.05, data[:, 2]))
     push!(amp_plots, plot)
     data = readdlm(time)
-    plot = @pgf Plot(style, Table(data[:, 1], data[:, 2]))
+    plot = @pgf Plot(style, Table(data[:, 1] .* 0.05, data[:, 2]))
     push!(time_plots, plot)
 end
 
@@ -50,9 +50,14 @@ gr = @pgf GroupPlot(
         },
         enlarge_y_limits = "0.01",
         enlarge_x_limits = "false",
-        ticklabel_style = "/pgf/number format/fixed",
+        xticklabel_style = {
+            "scaled ticks=false",
+            "/pgf/number format/fixed", 
+            "/pgf/number format/precision=3",
+            },
         max_space_between_ticks = "84pt",
         try_min_ticks = 3,
+        scaled_ticks = "false",
         # xtick_distance = "$(c.T/2)",
         width = "\\textwidth",
         height = "0.5\\textwidth",
@@ -60,13 +65,14 @@ gr = @pgf GroupPlot(
         ylabel_style = "at ={(rel axis cs: -0.08,0.4)}",
         # clip = false,
     },
-    {ymax = 1, xmin = 0.01,xmax = 0.15, ylabel = raw"$S_m$",
-    raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(a)};}"
+    {ymax = 1, xmax = 0.007, ylabel = raw"$S_m$",
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(a)};}",
     },
     amp_plots,
-    {ymax = 1, xmin = 0.01,xmax = 0.15, ylabel = raw"$S_t$", xlabel = raw"$\chi t$",
-    raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(b)};}"
+    {   
+        ymax = 1, xmax = 0.007, ylabel = raw"$S_t$", xlabel = raw"$\chi t$",
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.18,1.0) {(b)};}",
     },
     time_plots
 )
-display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/gfx/sensitivity.pdf", gr)
+display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_4_sensitivity.pdf", gr)

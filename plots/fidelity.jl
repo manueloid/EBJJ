@@ -29,25 +29,26 @@ ad_opt = @pgf {color = colors.green, line_width = 1, style = styles.dot_dash}
 extra_opt = @pgf {color = colors.yellow, line_width = 1, style = styles.ldash}
 styles_plot = [esta_opt, sta_opt, extra_opt, ad_opt]
 
+xmax(val) = @pgf {xmax = val}
 PGFPlotsX.enable_interactive(false)
 function plottering(nn, uu)
     plots, ymin = [], 0.0
     for (type, style) in zip(types, styles_plot)
         file = fileloc(nn, type, uu)
         data = readdlm(file)
-        plot = @pgf Plot(style, Table(data[1:end-58, 1], data[1:end-58, 2]))
+        plot = @pgf Plot(style, Table(data[1: end÷2, 1], data[1:end÷2, 2]))
         push!(plots, plot)
         ymin = data[:, 2][1]
     end
     println(ymin)
-    push!(plots, ["\\node at (rel axis cs:.8,0.25) {\$ N = $nn \$};"])
-    push!(plots, ["\\node at (rel axis cs:.8,0.15) {\$ \\Lambda = $( nn * uu / 2) \$};"])
+    # push!(plots, ["\\node at (rel axis cs:.8,0.85) {\$ N = $nn \$};"])
+    push!(plots, ["\\node at (rel axis cs:.8,0.85) {\$ \\Lambda = $( nn * uu / 2) \$};"])
     ax = @pgf Axis({ymin = ymin}, plots)
     return ax
 end
-xlabel = @pgf {xlabel = raw"$\chi t$"}
+xlabel = @pgf {xlabel = raw"$\chi t_f$"}
 ylabel = @pgf {ylabel = "F"}
-xmax(val) = @pgf {xmax = val}
+title = @pgf {title = raw"$\chi t_f$"}
 gr = @pgf GroupPlot(
     {
         group_style = {
@@ -59,6 +60,11 @@ gr = @pgf GroupPlot(
             yticklabels_at = "edge left",
             ylabels_at = "edge left",
         },
+        xticklabel_style = {
+            "scaled ticks=false",
+            "/pgf/number format/fixed", 
+            "/pgf/number format/precision=3",
+            },
         enlarge_y_limits = "0.01",
         enlarge_x_limits = "false",
         ticklabel_style = "/pgf/number format/fixed",
@@ -70,9 +76,9 @@ gr = @pgf GroupPlot(
         # ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
         # clip = false,
     },
-    merge!(plottering(50, 0.4), ylabel),
-    plottering(200, 0.1),
-    plottering(400, 0.05),
+    merge!(plottering(50, 0.4), ylabel, {title = "N = 50"}),
+    merge!(plottering(200, 0.1), {title = "N = 200"}),
+    merge!(plottering(400, 0.05), {title = "N = 400"}),
     # Second row
     merge!(plottering(50, 0.2), ylabel),
     plottering(200, 0.05),

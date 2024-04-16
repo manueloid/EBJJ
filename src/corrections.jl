@@ -96,10 +96,16 @@ function corrections(c::ControlFull)
     N, U = c.N, c.U
     h, λs, narr = 2.0 / N, c.nλ, c.states
     # Definition of the auxiliary functions
-    b(t) = auxiliary(t, c)
-    db(t) = EBJJ.auxiliary_1d(t, c)
-    d2b(t) = EBJJ.auxiliary_2d(t, c)
-    Ω(t) = control_function(t, c)
+    Ω(t) = control_functionX(t, c)
+    b0(c::Control) = (1 + 2 / (c.N * c.U))^(1/4)
+    bf(c::Control) = ((1 + (2c.Ωf / (c.N * c.U))) / c.Ωf)^(1/4)
+    ddb0(c::Control) = -4c.T^2 * (c.N * c.U / ( 2 + c.N * c.U))^(3/4)
+    ddbf(c::Control) = -4c.Ωf* c.T^2 *(c.N * c.U * c.Ωf / ( 2c.Ωf + c.N*c.U))^(3/4)
+    b(t, c::Control) = auxiliaryX(t, b0(c), bf(c), ddb0(c), ddbf(c))
+    b(t) = b(t / c.T, c)
+    db(t) = ForwardDiff.derivative(b, t)
+    ddb(t) = ForwardDiff.derivative(db, t)
+    f(t) = control_functionX(t, c)
     gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
     grad(t::Float64) = [g(t) for g in gradient_functions]
     f2(t::Float64)  = sqrt(N / (2U)) / b(t)^2 - im * db(t) / (2U * b(t))
