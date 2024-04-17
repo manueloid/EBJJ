@@ -101,7 +101,7 @@ max_state = 2
 nλ = 2
 U = 0.4
 N = 50
-t0, tf = 0.005, 0.05
+t0, tf = 0.005, 0.35
 Ωf = 0.1
 tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
@@ -136,7 +136,6 @@ cf_ad = l.(0.0:c.T/1000:c.T, Ref(cs))
 cf_staX = control_functionX.(0.0:c.T/1000:c.T, Ref(cs))
 # Style and plotting
 using PGFPlotsX, Colors
-
 colors = (
     black=colorant"#000000", # STA	
     red=colorant"#FF0000", # eSTA Full Hamiltonian with Hessian 
@@ -204,7 +203,7 @@ gr = @pgf GroupPlot(
     {
         ylabel = "\$F\$",
         xlabel = "\$\\chi t\$",
-        ymin = min(fid_sta...),  ymax = 1.0,
+        ymin = min(fid_esta...),  ymax = 1.0,
         raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(c)};}"
     },
     Plot(esta_opt, Table(ts, fid_esta)),
@@ -212,4 +211,4 @@ gr = @pgf GroupPlot(
     Plot(ad_opt, Table(ts, fid_ad)),
     Plot(extra_opt, Table(ts, fid_staX)),
     )
-display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_2_evolution.pdf", gr)
+display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_2_evolution_negative.pdf", gr)
