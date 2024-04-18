@@ -136,12 +136,13 @@ cf_ad = l.(0.0:c.T/1000:c.T, Ref(cs))
 cf_staX = control_functionX.(0.0:c.T/1000:c.T, Ref(cs))
 # Style and plotting
 using PGFPlotsX, Colors
+
 colors = (
     black=colorant"#000000", # STA	
     red=colorant"#FF0000", # eSTA Full Hamiltonian with Hessian 
     blue=colorant"#0000FF", # eSTA Intermediate Hamiltonian with Hessian
     yellow=colorant"#FFa000", # eSTA Full Hamiltonian with original version
-    green=colorant"#008000"# eSTA Intermediate Hamiltonian original version
+    green=colorant"#014000"# eSTA Intermediate Hamiltonian original version
 )
 styles = (
     solid="solid",                         # eSTA Intermediate Hamiltonian with Hessian
@@ -176,14 +177,14 @@ gr = @pgf GroupPlot(
             "/pgf/number format/fixed", 
             "/pgf/number format/precision=3",
             },
-        width = "\\textwidth",
-        height = "0.5\\textwidth",
-        # ylabel_style = "at ={(rel axis cs: -0.08,0.4)}",
+        width = "8cm",
+        height = "4cm",
+        # ylabel_style = "at ={(rel axis cs: -0.14,0.4)}",
         clip = false,
     },
     {
         ylabel = "\$\\Omega\$(t)",
-        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(a)};}"
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,0.1) {(a)};}"
     },
     # Control function
     Plot(esta_opt, Table(ts, cf_esta)),
@@ -193,7 +194,7 @@ gr = @pgf GroupPlot(
     # α Squeezing
     {
         ylabel = "\$\\xi_s^2\$ ",
-        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(b)};}"
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,0.1) {(b)};}"
     },
     Plot(esta_opt, Table(ts, ξs_esta)),
     Plot(sta_opt, Table(ts, ξs_sta)),
@@ -204,7 +205,7 @@ gr = @pgf GroupPlot(
         ylabel = "\$F\$",
         xlabel = "\$\\chi t\$",
         ymin = min(fid_esta...),  ymax = 1.0,
-        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(c)};}"
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,0.1) {(c)};}"
     },
     Plot(esta_opt, Table(ts, fid_esta)),
     Plot(sta_opt, Table(ts, fid_sta)),

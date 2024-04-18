@@ -70,8 +70,10 @@ gr = @pgf GroupPlot(
         ticklabel_style = "/pgf/number format/fixed",
         max_space_between_ticks = "60pt",
         try_min_ticks = 4,
+        width = "7cm",
+        height = "7cm",
         # xtick_distance = "$(c.T/2)",
-        # width = "0.25\\textwidth",
+        # width = "0.5\\textwidth",
         # height = ".5\\textwidth",
         # ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
         # clip = false,
@@ -88,5 +90,5 @@ gr = @pgf GroupPlot(
     merge!(plottering(200, 0.025), xlabel),
     merge!(plottering(400, 0.0125), xlabel)
 )
+# display("/tmp/fig.pdf", gr)
 display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_3_fidelity.pdf", gr)
-

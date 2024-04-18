@@ -15,19 +15,6 @@ Column 3 sensitivity amplitude
 Column 4 sensitivity time
 Column 5 eta
 =#
-st_plots, sm_plots, eta_plots = [], [], []
-for (values, style) in zip(nsens[1:2:end], styles_plot)
-    data = readdlm(values)
-    time, sm, st, eta = data[5:end, 1], data[5:end, 2], data[5:end, 3], data[5:end, 5]
-    push!(st_plots, Plot(style, Table(time, st)))
-    push!(sm_plots, Plot(style, Table(time, sm)))
-    push!(eta_plots, Plot(style, Table(time, eta)))
-end
-    
-    
-
-amp_files = filter(file -> occursin("amp", file), files)
-time_files = filter(file -> occursin("time", file), files)
 
 colors = (
     black=colorant"#000000", # STA	
@@ -49,64 +36,72 @@ sta_opt = @pgf{color = colors.black, line_width = 1, style = styles.dash}
 ad_opt = @pgf {color = colors.green, line_width = 1, style = styles.dot_dash}
 extra_opt = @pgf {color = colors.yellow, line_width = 1, style = styles.ldash}
 styles_plot = [esta_opt, sta_opt, extra_opt]
-
-amp_plots, time_plots = [], []
-for (amp, time, style) in zip(amp_files, time_files, styles_plot)
-    data = readdlm(amp)
-    plot = @pgf Plot(style, Table(data[:, 1] .* 0.05, data[:, 2]))
-    push!(amp_plots, plot)
-    data = readdlm(time)
-    plot = @pgf Plot(style, Table(data[:, 1] .* 0.05, data[:, 2]))
-    push!(time_plots, plot)
+st_plots5, sm_plots5, eta_plots5 = [], [], []
+for (values, style) in zip(nsens[2:2:end], styles_plot)
+    data = readdlm(values)
+    time, sm, st, eta = data[5:end, 1], data[5:end, 2], data[5:end, 3], data[5:end, 5]
+    push!(st_plots5, Plot(style, Table(time, st)))
+    push!(sm_plots5, Plot(style, Table(time, sm)))
+    push!(eta_plots5, Plot(style, Table(time, eta)))
+end
+st_plots20, sm_plots20, eta_plots20 = [], [], []
+for (values, style) in zip(nsens[1:2:end], styles_plot)
+    data = readdlm(values)
+    time, sm, st, eta = data[5:end, 1], data[5:end, 2], data[5:end, 3], data[5:end, 5]
+    push!(st_plots20, Plot(style, Table(time, st)))
+    push!(sm_plots20, Plot(style, Table(time, sm)))
+    push!(eta_plots20, Plot(style, Table(time, eta)))
 end
 PGFPlotsX.enable_interactive(false)
-
 # The best plan for this moment is to set up all the axis and only in a second time I am going to set up some functions to read the data and make the plots
 # This is the big one 
-canvas = @pgf Axis({
+function plotting(eta, sm, st)
+    canvas = @pgf Axis({
         name = "canvas",
-        width = "\\textwidth",
+        width = "8cm",
+        height = "8cm",
         xlabel = raw"$\chi t_f$",
         ylabel = raw"$\eta$",
+        # raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(a)};}",
         xticklabel_style = {
             "scaled ticks=false",
             "/pgf/number format/fixed", 
             "/pgf/number format/precision=3",
             },
-        try_min_ticks = 4,
+        try_min_ticks = 3,
         max_space_between_ticks = "40pt",
-        xmax = 0.003,
-        ymax = 1.0,
-        xtick_distance = 0.003 /4,
+        xmax = 0.006,
+        ymax = 0.8,
+        xtick_distance = 0.006 /4,
         enlarge_x_limits = "false",
         enlarge_y_limits = "0.01",
     },
-    eta_plots,
-)
-inset1 = @pgf Axis({
+    eta,
+    )
+    inset1 = @pgf Axis({
         name = "inset",
         at = "{(canvas.north east)}",
-        width = "0.5\\textwidth",
-        height = "0.30\\textwidth",
-        xshift = "-10pt",
-        yshift = "-10pt",
+        width = "4.5cm",
+        height = "3cm",
+        xshift = "-13pt",
+        yshift = "-11pt",
         anchor = "north east",
         xtick = "\\empty",
         xlabel = "{}",
         ylabel = raw"$S_t$",
-        xmax = 0.003,
-        ymax = 1.0,
-        try_min_ticks = 3, 
+        xmax = 0.006,
+        ymax = 0.8,
+        try_min_ticks = 2, 
         enlarge_x_limits = "false",
         enlarge_y_limits = "0.01",
     },
-    st_plots
-)
-# The following two are the insets.
-inset2 = @pgf Axis({
+    st, 
+    )
+    # The following two are the insets.
+    inset2 = @pgf Axis({
         at = "{(inset.south east)}",
-        width = "5cm", width = "0.5\\textwidth",
-        height = "0.30\\textwidth",
+        width = "4.5cm",
+        height = "3cm",
         anchor = "north east",
         xticklabel_style = {
             "scaled ticks=false",
@@ -114,20 +109,30 @@ inset2 = @pgf Axis({
             "/pgf/number format/precision=3",
             },
         xlabel= raw"$\chi t_f$",
+        # xtick = "\\empty",
+        # xlabel = "{}",
         ylabel = raw"$S_m$",
-        xmax = 0.003,
-        ymax = 0.5,
-        xtick_distance = 0.003/2, # xticklabel_style
-        try_min_ticks = 3, 
+        xmax = 0.006,
+        ymax = 0.8,
+        try_min_ticks = 2, 
+        xtick_distance = 0.006/2, # xticklabel_style
         enlarge_x_limits = "false",
         enlarge_y_limits = "0.01",
     },
-    sm_plots)
-time, eta = esta[:, 1], esta[:, 5]
-tkz = @pgf TikzPicture({},
-    canvas,
-    inset1,
-    inset2
+    sm)
+    return [canvas, inset1, inset2]
+end
+canvas5, inset1_5, inset2_5 = plotting(eta_plots5, sm_plots5, st_plots5)
+canvas20, inset1_20, inset2_20 = plotting(eta_plots20, sm_plots20, st_plots20)
+canvas5["xlabel"] = "\\empty"
+tkz = @pgf TikzPicture({
+    },
+    merge!(canvas20, {raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,0.1) {(b)};}"}), 
+    inset1_20,
+    inset2_20,
+    merge!(canvas5, {at = "{(canvas.north west)}", yshift = "15pt", raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,0.1) {(a)};}"}),
+    inset1_5,
+    inset2_5,
 )
 # display("/tmp/plot.pdf", tkz)
-display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_3_sensitivity400_5.pdf", tkz)
+display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_4_sensitivity_full.pdf", tkz)
