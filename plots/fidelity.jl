@@ -31,12 +31,21 @@ styles_plot = [esta_opt, sta_opt, extra_opt, ad_opt]
 
 xmax(val) = @pgf {xmax = val}
 PGFPlotsX.enable_interactive(false)
+function tabulars(nn, uu)
+    tabs = []
+    for type in types
+        file = fileloc(nn, type, uu)
+        data = readdlm(file)
+        push!(tabs, data)
+    end
+    return tabs
+end
 function plottering(nn, uu)
     plots, ymin = [], 0.0
     for (type, style) in zip(types, styles_plot)
         file = fileloc(nn, type, uu)
         data = readdlm(file)
-        plot = @pgf Plot(style, Table(data[1: end÷2, 1], data[1:end÷2, 2]))
+        plot = @pgf Plot(style, Table(data[1: end, 1], data[1:end, 2]))
         push!(plots, plot)
         ymin = data[:, 2][1]
     end
@@ -46,9 +55,16 @@ function plottering(nn, uu)
     ax = @pgf Axis({ymin = ymin}, plots)
     return ax
 end
+
 xlabel = @pgf {xlabel = raw"$\chi t_f$"}
 ylabel = @pgf {ylabel = "F"}
 title = @pgf {title = raw"$\chi t_f$"}
+xm50 = @pgf {xmax = 0.04, xtick_distance = "$(0.04 / 4)"}
+xm200 = @pgf {xmax = 0.01, xtick_distance = "$(0.01 / 4)"}
+xm400 = @pgf {xmax = 0.005, xtick_distance = "$(0.005 / 4)"}
+ym10 = @pgf {ymin = 0.858}
+ym5 = @pgf {ymin = 0.868}
+ym2 = @pgf {ymin = 0.884}
 gr = @pgf GroupPlot(
     {
         group_style = {
@@ -70,6 +86,7 @@ gr = @pgf GroupPlot(
         ticklabel_style = "/pgf/number format/fixed",
         max_space_between_ticks = "60pt",
         try_min_ticks = 4,
+        ymax = 1.0,
         width = "7cm",
         height = "7cm",
         # xtick_distance = "$(c.T/2)",
@@ -78,17 +95,17 @@ gr = @pgf GroupPlot(
         # ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
         # clip = false,
     },
-    merge!(plottering(50, 0.4), ylabel, {title = "N = 50", xmax = 0.04}),
-    merge!(plottering(200, 0.1), {title = "N = 200", xmax = 0.01}),
-    merge!(plottering(400, 0.05), {title = "N = 400",xmax = 0.005}),
+    merge!(plottering(50, 0.4), ylabel, xm50, ym10,  {title = "N = 50"}),
+    merge!(plottering(200, 0.1), xm200, ym10, {title = "N = 200"}),
+    merge!(plottering(400, 0.05), xm400, ym10, {title = "N = 400"}),
     # Second row
-    merge!(plottering(50, 0.2), ylabel, {xmax = 0.04}),
-    merge!(plottering(200, 0.05), {xmax = 0.01}),
-    merge!(plottering(400, 0.025), {xmax = 0.005}),
+    merge!(plottering(50, 0.2), ylabel, xm50, ym5),
+    merge!(plottering(200, 0.05), xm200, ym5),
+    merge!(plottering(400, 0.025), xm400, ym5),
     # Third row
-    merge!(plottering(50, 0.1), ylabel, xlabel, {xmax = 0.04, xtick_distance = "$(0.04 / 2)"}),
-    merge!(plottering(200, 0.025), xlabel, {xmax = 0.01, xtick_distance = "$(0.01 / 2)"}),
-    merge!(plottering(400, 0.0125), xlabel, {xmax = 0.005, xtick_distance = "$(0.005/ 2)"}),
+    merge!(plottering(50, 0.1), ylabel, xlabel, xm50, ym2 ),
+    merge!(plottering(200, 0.025), xlabel, xm200, ym2),
+    merge!(plottering(400, 0.0125), xlabel, xm400, ym2),
 )
 # display("/tmp/fig.pdf", gr)
 display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_3_fidelity.pdf", gr)

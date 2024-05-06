@@ -99,15 +99,14 @@ end
 
 max_state = 2
 nλ = 2
-U = 0.4
-N = 50
-t0, tf = 0.005, 0.40
+U = 0.025
+N = 400
+t0, tf = 0.005, 0.16
 Ωf = 0.1
 tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
-
 tf = c.T * U
 ts = 0.0:tf/1000:tf
 ξN_sta = squeezing_ξ(q, cs)
@@ -134,6 +133,12 @@ end
 cf_sta = control_function.(0.0:c.T/1000:c.T, Ref(cs))
 cf_ad = l.(0.0:c.T/1000:c.T, Ref(cs))
 cf_staX = control_functionX.(0.0:c.T/1000:c.T, Ref(cs))
+#=
+ξN_sta = todecibel.(ξN_sta)
+ξN_esta = todecibel.(ξN_esta)
+ξN_ad = todecibel.(ξN_ad)
+ξN_staX = todecibel.(ξN_staX)
+=#
 # Style and plotting
 using PGFPlotsX, Colors
 
@@ -161,7 +166,7 @@ PGFPlotsX.enable_interactive(false)
 gr = @pgf GroupPlot(
     {
         group_style = { 
-            group_size = " 1 by 3",
+            group_size = " 1 by 4",
             vertical_sep = "10pt",
             xticklabels_at = "edge bottom",
             xlabels_at = "edge bottom"
@@ -179,22 +184,31 @@ gr = @pgf GroupPlot(
             },
         width = "8cm",
         height = "4cm",
-        # ylabel_style = "at ={(rel axis cs: -0.14,0.4)}",
+        ylabel_style = "at ={(rel axis cs: -0.14,0.4)}",
         clip = false,
     },
     {
         ylabel = "\$\\Omega\$(t)",
-        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,0.1) {(a)};}"
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,1.1) {(a)};}"
     },
     # Control function
     Plot(esta_opt, Table(ts, cf_esta)),
     Plot(sta_opt, Table(ts, cf_sta)),
     Plot(ad_opt, Table(ts, cf_ad)),
     Plot(extra_opt, Table(ts, cf_staX)),
+    # ξn Squeezing
+    {
+        ylabel = "\$\\xi_N^2\$",
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,1.1) {(b)};}"
+    },
+    Plot(esta_opt, Table(ts, ξN_esta)),
+    Plot(sta_opt, Table(ts, ξN_sta)),
+    Plot(ad_opt, Table(ts, ξN_ad)),
+    Plot(extra_opt, Table(ts, ξN_staX)),
     # α Squeezing
     {
         ylabel = "\$\\xi_s^2\$[dB]",
-        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,0.1) {(b)};}"
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,1.1) {(c)};}"
     },
     Plot(esta_opt, Table(ts, ξs_esta)),
     Plot(sta_opt, Table(ts, ξs_sta)),
@@ -204,12 +218,12 @@ gr = @pgf GroupPlot(
     {
         ylabel = "\$F\$",
         xlabel = "\$\\chi t\$",
-        ymin = min(fid_esta...),  ymax = 1.0,
-        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,0.1) {(c)};}"
+        ymin = min(fid_sta...),  ymax = 1.0,
+        raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,1.1) {(d)};}"
     },
     Plot(esta_opt, Table(ts, fid_esta)),
     Plot(sta_opt, Table(ts, fid_sta)),
     Plot(ad_opt, Table(ts, fid_ad)),
     Plot(extra_opt, Table(ts, fid_staX)),
     )
-display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_2_evolution_negative.pdf", gr)
+display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/TwistTurnIBJJ_Fig2_400.pdf", gr)
