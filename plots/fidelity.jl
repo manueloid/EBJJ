@@ -42,7 +42,7 @@ function plottering(nn, uu)
     end
     println(ymin)
     # push!(plots, ["\\node at (rel axis cs:.8,0.85) {\$ N = $nn \$};"])
-    push!(plots, ["\\node at (rel axis cs:.8,0.85) {\$ \\Lambda_0 = $( nn * uu / 2) \$};"])
+    push!(plots, ["\\node at (rel axis cs:.8,0.25) {\$ \\Lambda_0 = $( nn * uu / 2) \$};"])
     ax = @pgf Axis({ymin = ymin}, plots)
     return ax
 end
@@ -78,17 +78,17 @@ gr = @pgf GroupPlot(
         # ylabel_style = "at ={(rel axis cs: -0.18,0.5)}",
         # clip = false,
     },
-    merge!(plottering(50, 0.4), ylabel, {title = "N = 50"}),
-    merge!(plottering(200, 0.1), {title = "N = 200"}),
-    merge!(plottering(400, 0.05), {title = "N = 400"}),
+    merge!(plottering(50, 0.4), ylabel, {title = "N = 50", xmax = 0.04}),
+    merge!(plottering(200, 0.1), {title = "N = 200", xmax = 0.01}),
+    merge!(plottering(400, 0.05), {title = "N = 400",xmax = 0.005}),
     # Second row
-    merge!(plottering(50, 0.2), ylabel),
-    plottering(200, 0.05),
-    plottering(400, 0.025),
+    merge!(plottering(50, 0.2), ylabel, {xmax = 0.04}),
+    merge!(plottering(200, 0.05), {xmax = 0.01}),
+    merge!(plottering(400, 0.025), {xmax = 0.005}),
     # Third row
-    merge!(plottering(50, 0.1), ylabel, xlabel),
-    merge!(plottering(200, 0.025), xlabel),
-    merge!(plottering(400, 0.0125), xlabel)
+    merge!(plottering(50, 0.1), ylabel, xlabel, {xmax = 0.04, xtick_distance = "$(0.04 / 2)"}),
+    merge!(plottering(200, 0.025), xlabel, {xmax = 0.01, xtick_distance = "$(0.01 / 2)"}),
+    merge!(plottering(400, 0.0125), xlabel, {xmax = 0.005, xtick_distance = "$(0.005/ 2)"}),
 )
 # display("/tmp/fig.pdf", gr)
 display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_3_fidelity.pdf", gr)

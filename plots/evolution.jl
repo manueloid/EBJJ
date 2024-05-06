@@ -101,7 +101,7 @@ max_state = 2
 nλ = 2
 U = 0.4
 N = 50
-t0, tf = 0.005, 0.35
+t0, tf = 0.005, 0.40
 Ωf = 0.1
 tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
@@ -171,7 +171,7 @@ gr = @pgf GroupPlot(
         ticklabel_style = "/pgf/number format/fixed",
         max_space_between_ticks = "40pt",
         try_min_ticks = 3,
-        xtick_distance = "$(tf/3)",
+        xtick_distance = "$(tf/4)",
         xticklabel_style = {
             "scaled ticks=false",
             "/pgf/number format/fixed", 
@@ -193,7 +193,7 @@ gr = @pgf GroupPlot(
     Plot(extra_opt, Table(ts, cf_staX)),
     # α Squeezing
     {
-        ylabel = "\$\\xi_s^2\$ ",
+        ylabel = "\$\\xi_s^2\$[dB]",
         raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.14,0.1) {(b)};}"
     },
     Plot(esta_opt, Table(ts, ξs_esta)),
