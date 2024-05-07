@@ -59,18 +59,18 @@ end
 xlabel = @pgf {xlabel = raw"$\chi t_f$"}
 ylabel = @pgf {ylabel = "F"}
 title = @pgf {title = raw"$\chi t_f$"}
-xm50 = @pgf {xmax = 0.04, xtick_distance = "$(0.04 / 4)"}
-xm200 = @pgf {xmax = 0.01, xtick_distance = "$(0.01 / 4)"}
-xm400 = @pgf {xmax = 0.005, xtick_distance = "$(0.005 / 4)"}
-ym10 = @pgf {ymin = 0.858}
-ym5 = @pgf {ymin = 0.868}
-ym2 = @pgf {ymin = 0.884}
+xm50 = @pgf {xmin = 0.0, xmax = 0.04, xtick_distance = "$(0.04 / 2)"}
+xm200 = @pgf {xmin = 0.0, xmax = 0.01, xtick_distance = "$(0.01 / 2)"}
+xm400 = @pgf {xmin = 0.0, xmax = 0.005, xtick_distance = "$(0.005 / 2)"}
+ym10 = @pgf {ymin = 0.85, ymax = 1.0}
+ym5 = @pgf {ymin = 0.85, ymax = 1.0}
+ym2 = @pgf {ymin = 0.85, ymax = 1.0}
 gr = @pgf GroupPlot(
     {
         group_style = {
             group_size = " 3 by 3",
             vertical_sep = "10pt",
-            horizontal_sep = "10pt",
+            horizontal_sep = "20pt",
             xticklabels_at = "edge bottom",
             xlabels_at = "edge bottom",
             yticklabels_at = "edge left",
@@ -79,8 +79,9 @@ gr = @pgf GroupPlot(
         xticklabel_style = {
             "scaled ticks=false",
             "/pgf/number format/fixed", 
-            "/pgf/number format/precision=3",
+            "/pgf/number format/precision=4",
             },
+        minor_tick_num = 2,
         enlarge_y_limits = "0.01",
         enlarge_x_limits = "false",
         ticklabel_style = "/pgf/number format/fixed",
@@ -108,4 +109,4 @@ gr = @pgf GroupPlot(
     merge!(plottering(400, 0.0125), xlabel, xm400, ym2),
 )
 # display("/tmp/fig.pdf", gr)
-display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/Fig_3_fidelity.pdf", gr)
+display(homedir() * "/Repos/ExternalBJJ/Documents/Paper/TwistTurnIBJJ_Fig4.pdf", gr)
