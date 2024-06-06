@@ -78,21 +78,21 @@ end
 using EBJJ, Plots, DelimitedFiles
 max_state = 2
 nλ = 2
-U = .4
+U = .001
 N = 50
-t0, tf = 0.005, .5 
-Ωf = 0.1
-tfs = range(t0, tf, length=100) 
+t0, tf = 0.005, .1 
+Ωf = 0.02
+tfs = range(t0, tf, length=10) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
-
 fid_esta = fidelities(c, tfs)
 fid_sta = fidelities(cs, tfs)
 
 plot()
-plot(tfs, fid_esta, label="eSTA", xlim = (0.02, 0.3) )
+plot(tfs, fid_esta, label="eSTA")
 plot!(tfs, fid_sta, label="STA" )
+
 some = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid50esta04.dat")
 some2 = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid50sta04.dat")
 # plot(tfs, fid_esta, label="eSTA")
