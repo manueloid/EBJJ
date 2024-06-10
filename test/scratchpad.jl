@@ -92,6 +92,9 @@ fid_sta = fidelities(cs, tfs)
 plot()
 plot(tfs, fid_esta, label="eSTA")
 plot!(tfs, fid_sta, label="STA" )
+# Save data to files 
+writedlm("/home/manueloid/Desktop/test_esta.dat", hcat(tfs, fid_esta))
+writedlm("/home/manueloid/Desktop/test_sta.dat", hcat(tfs, fid_sta))
 
 some = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid50esta04.dat")
 some2 = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid50sta04.dat")
