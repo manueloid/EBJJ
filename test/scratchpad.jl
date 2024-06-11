@@ -31,7 +31,25 @@ I will define a new function that evaluates both the corrections and the corresp
 I will lay out everything inside the body of the function, hoping that I can get some nice result
 =#
 
-using EBJJ, ProgressMeter
+using EBJJ, ProgressMeter, QuantumOptics
+function fidelity_css(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error=Error(0.0, 0.0))
+    ε, δ = e.mod_err, e.time_err
+    css_state = eigenstates(q.Jx)[end][end]
+    Ω(t) = control_functionX(t + δ, c, corrs) * (1 + ε)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
+    return timeevolution.schroedinger_dynamic([0.0, c.T], css_state, H; fout=fid)[2][end]
+end
+function fidelity_css(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
+    ε, δ = e.mod_err, e.time_err
+    css_state = eigenstates(q.Jx)[end][end]
+    Ω(t) = control_functionX(t + δ, c) * (1 + ε)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
+    return timeevolution.schroedinger_dynamic([0.0, c.T], css_state, H; fout=fid)[2][end]
+end
+fidelity_css(q,c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity_css(q, c, corrections(corrections(c)), e)
+fidelity_CSS(q,c::ControlSTA, e::Error=Error(0.0, 0.0)) = fidelity_css(q, c, e)
 """
     fidelities(c::Control, tfs::AbstractVector{Float64})
 Calculate the fidelity of the control object `c` at the final times `tfs` for different values of the final time
@@ -43,6 +61,17 @@ function fidelities(c::Control, tfs::AbstractVector{Float64})
     Threads.@threads for index in eachindex(tfs)
         cl = EBJJ.c_time(c, tfs[index])
         fid[index] = EBJJ.fidelity(q, cl)
+        next!(p)
+    end
+    return fid
+end
+function fidelities_css(c::Control, tfs::AbstractVector{Float64})
+    q = ConstantQuantity(c)
+    fid = zeros(length(tfs))
+    p = Progress(length(tfs), 1, "Calculating fidelities")
+    Threads.@threads for index in eachindex(tfs)
+        cl = EBJJ.c_time(c, tfs[index])
+        fid[index] = fidelity_css(q, cl)
         next!(p)
     end
     return fid
@@ -80,19 +109,22 @@ max_state = 2
 nλ = 2
 U = .001
 N = 50
-t0, tf = 0.005, .1 
-Ωf = 0.02
-tfs = range(t0, tf, length=10) 
+t0, tf = 0.2, 1.0
+Ωf = 0.01
+tfs = range(t0, tf, length=100) 
 c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
-fid_esta = fidelities(c, tfs)
-fid_sta = fidelities(cs, tfs)
+
+# fid_esta = fidelities(c, tfs)
+fid_css_sta = fidelities_css(cs, tfs)
+fid_css_esta = fidelities_css(c, tfs)
 
 plot()
-plot(tfs, fid_esta, label="eSTA")
-plot!(tfs, fid_sta, label="STA" )
+plot(tfs, fid_css_esta, label="eSTA")
+plot!(tfs, fid_css_sta, label="STA")
 # Save data to files 
+
 writedlm("/home/manueloid/Desktop/test_esta.dat", hcat(tfs, fid_esta))
 writedlm("/home/manueloid/Desktop/test_sta.dat", hcat(tfs, fid_sta))
 
