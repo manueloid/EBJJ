@@ -109,10 +109,10 @@ max_state = 2
 nλ = 2
 U = .001
 N = 50
-t0, tf = 0.2, 1.0
+t0, tf = 0.002, 0.2
 Ωf = 0.01
-tfs = range(t0, tf, length=100) 
-c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
+tfs = range(t0, tf, length=10) 
+c = ControlFull(N, Ωf, U, t0, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
 
@@ -120,10 +120,31 @@ q = ConstantQuantity(c)
 fid_css_sta = fidelities_css(cs, tfs)
 fid_css_esta = fidelities_css(c, tfs)
 
+fid_sta = fidelities(cs, tfs)
+fid_esta = fidelities(c, tfs)
+
 plot()
-plot(tfs, fid_css_esta, label="eSTA")
+plot(tfs , fid_css_esta, label="eSTA", title = "Fidelity starting from the CSS state")
 plot!(tfs, fid_css_sta, label="STA")
+savefig("/home/manueloid/Desktop/fid_css.png")
 # Save data to files 
+
+plot()
+plot(tfs, fid_esta, label="eSTA", title = "Fidelity starting from ψ0")
+plot!(tfs, fid_sta, label="STA")
+savefig("/home/manueloid/Desktop/fid_standard.png")
+
+# Control function
+j_sta(t) = control_function(t, cs)
+corrs = corrections(corrections(c))
+j_esta(t) = control_function(t,c, corrs)
+trange = range(0.0, c.T, length = 1000)
+
+plot()
+plot(trange, j_esta.(trange), label="eSTA", title = "Control function, tf = $(c.T)")
+plot!(trange, j_sta.(trange), label="STA")
+
+savefig("/home/manueloid/Desktop/control_function.png")
 
 writedlm("/home/manueloid/Desktop/test_esta.dat", hcat(tfs, fid_esta))
 writedlm("/home/manueloid/Desktop/test_sta.dat", hcat(tfs, fid_sta))
