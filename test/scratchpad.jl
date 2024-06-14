@@ -15,8 +15,6 @@ Here I need to check that the auxiliary functions work as expected.
 I will plot a series of auxiliary functions for different final times to see how they look.
 =#
 
-using Plots, EBJJ
-
 #=
 # 3 - Hamiltonian 
 
@@ -32,24 +30,46 @@ I will lay out everything inside the body of the function, hoping that I can get
 =#
 
 using EBJJ, ProgressMeter, QuantumOptics
-function fidelity_css(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error=Error(0.0, 0.0))
+"""
+    oat(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error = Error(0.0, 0.0))
+Return the final state of the evolution starting from the initial CSS state and evolving it using the Hamiltonian of the system under study.
+"""
+function oat(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error=Error(0.0, 0.0))
     ε, δ = e.mod_err, e.time_err
-    css_state = eigenstates(q.Jx)[end][end]
+    css_state = q.css
     Ω(t) = control_functionX(t + δ, c, corrs) * (1 + ε)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
-    fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
-    return timeevolution.schroedinger_dynamic([0.0, c.T], css_state, H; fout=fid)[2][end]
+    return timeevolution.schroedinger_dynamic([0.0, c.T], css_state, H)[end][end] # Returns the final state 
 end
-function fidelity_css(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
+function oat(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
     ε, δ = e.mod_err, e.time_err
-    css_state = eigenstates(q.Jx)[end][end]
+    css_state = eigenstates(-2 * q.Jx)[end][1]
     Ω(t) = control_functionX(t + δ, c) * (1 + ε)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
-    fid(t, psi) = abs2.(dagger(q.ψf) * psi) # Function that calculates the fidelity of the system
-    return timeevolution.schroedinger_dynamic([0.0, c.T], css_state, H; fout=fid)[2][end]
+    return timeevolution.schroedinger_dynamic([0.0, c.T], css_state, H)[end][end] # Returns the final state 
 end
-fidelity_css(q,c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity_css(q, c, corrections(corrections(c)), e)
-fidelity_CSS(q,c::ControlSTA, e::Error=Error(0.0, 0.0)) = fidelity_css(q, c, e)
+oat(q::ConstantQuantity,c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity_css(q, c, corrections(corrections(c)), e)
+"""
+    our(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error = Error(0.0, 0.0))
+Start the simulation from the ground state of _our_ Hamiltonian and evolve it using the Hamiltonian of the system under study.
+It returns the state at the final time.
+"""
+function our(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error=Error(0.0, 0.0))
+    ε, δ = e.mod_err, e.time_err
+    in = q.ψ0
+    Ω(t) = control_functionX(t + δ, c, corrs) * (1 + ε)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H)[end][end]
+end
+function our(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
+    ε, δ = e.mod_err, e.time_err
+    in = q.ψ0
+    Ω(t) = control_functionX(t + δ, c) * (1 + ε)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H)[end][end]
+end
+
+
 """
     fidelities(c::Control, tfs::AbstractVector{Float64})
 Calculate the fidelity of the control object `c` at the final times `tfs` for different values of the final time
@@ -107,14 +127,33 @@ end
 using EBJJ, Plots, DelimitedFiles
 max_state = 2
 nλ = 2
-U = .001
+U = .05
 N = 50
 t0, tf = 0.002, 0.2
-Ωf = 0.01
+Ωf = 0.2
 tfs = range(t0, tf, length=10) 
 c = ControlFull(N, Ωf, U, t0, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
+
+squeezing(state::Ket, q::ConstantQuantity, α::Float64) = dagger(state) * ( cos(α) * q.Jz + sin(α) * q.Jy)^2 * state - (dagger(state) * ( cos(α) * q.Jz + sin(α) * q.Jy) * state)^2 |> real |> s -> s / (c.N / 4)
+ξN(psi, q) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
+sta_state = our(q,cs)
+corrs = corrections(corrections(c))
+esta_state = oat(q, c, corrs)
+
+
+αrange = 0.0:0.01:π
+sq = [squeezing(final, q, α) for α in αrange]
+sq_sta, sq_esta = ξN.([sta_state, esta_state], Ref(q))
+min = findmin(sq)
+αrange[min[2]]
+plot(αrange, sq, label = "Squeezing", xlabel = "α", ylabel = "Squeezing")
+hline!([sq_sta], label = "sta")
+hline!([sq_esta], label = "esta")
+
+
+
 
 # fid_esta = fidelities(c, tfs)
 fid_css_sta = fidelities_css(cs, tfs)
@@ -126,13 +165,13 @@ fid_esta = fidelities(c, tfs)
 plot()
 plot(tfs , fid_css_esta, label="eSTA", title = "Fidelity starting from the CSS state")
 plot!(tfs, fid_css_sta, label="STA")
-savefig("/home/manueloid/Desktop/fid_css.png")
+# savefig("/home/manueloid/Desktop/fid_css.png")
 # Save data to files 
 
 plot()
 plot(tfs, fid_esta, label="eSTA", title = "Fidelity starting from ψ0")
 plot!(tfs, fid_sta, label="STA")
-savefig("/home/manueloid/Desktop/fid_standard.png")
+# savefig("/home/manueloid/Desktop/fid_standard.png")
 
 # Control function
 j_sta(t) = control_function(t, cs)

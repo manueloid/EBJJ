@@ -34,17 +34,21 @@ This first constructor will take only number types as input, I will specialize t
 =#
 
 struct ConstantQuantity
-    Jz::Operator
     Jx::Operator
+    Jy::Operator
+    Jz::Operator
     ψ0::Ket
     ψf::Ket
+    css::Ket
 end
 function ConstantQuantity(N::Int64, Ωf::Float64, U::Float64)
-    Jz = sigmaz(SpinBasis(N / 2)) / 2 |> dense       # Jz is a diagonal matrix 
     Jx = sigmax(SpinBasis(N / 2)) / 2 |> dense       # Jx operator
-    ψ0 = eigenstates(- 2 * Jx + U * Jz^2)[2][1] # Initial state
-    ψf = eigenstates(- 2 * Ωf * Jx + U * Jz^2)[2][1] # Final state
-    return ConstantQuantity(Jz, Jx, ψ0, ψf)
+    Jy = sigmay(SpinBasis(N / 2)) / 2 |> dense       # Jy operator
+    Jz = sigmaz(SpinBasis(N / 2)) / 2 |> dense       # Jz is a diagonal matrix 
+    ψ0 = eigenstates(- 2 * Jx + U * Jz^2)[2][1]      # ground state of the system at time 0 
+    ψf = eigenstates(- 2 * Ωf * Jx + U * Jz^2)[2][1] # ground state of the system at time T
+    css = eigenstates(- 2 * Jx)[2][1] # CSS initial state
+    return ConstantQuantity(Jx, Jy, Jz, ψ0, ψf, css)
 end
 ConstantQuantity(c::Control) = ConstantQuantity(c.N, c.Ωf, c.U)
 #=
