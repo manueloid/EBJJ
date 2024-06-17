@@ -30,96 +30,41 @@ I will lay out everything inside the body of the function, hoping that I can get
 =#
 
 using EBJJ, ProgressMeter, QuantumOptics
-"""
-    oat(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error = Error(0.0, 0.0))
-Return the final state of the evolution starting from the initial CSS state and evolving it using the Hamiltonian of the system under study.
-"""
-function oat(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error=Error(0.0, 0.0))
-    ε, δ = e.mod_err, e.time_err
-    css_state = q.css
-    Ω(t) = control_functionX(t + δ, c, corrs) * (1 + ε)
-    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
-    return timeevolution.schroedinger_dynamic([0.0, c.T], css_state, H)[end][end] # Returns the final state 
+
+function ΔJ_oat(ψ::Ket, q::ConstantQuantity)
+    Jz, Jy = q.Jz, q.Jy
+    num = ψ' * (Jz * Jy + Jy * Jz) * ψ
+    den = ψ' * Jz^2 * ψ - ψ' * Jy^2 * ψ
+    α = 1 / 2 * atan(num / den) |> real
+    return cos(α)^2 * ψ' * Jz^2 * ψ + sin(α)^2 * ψ' * Jy^2 * ψ + cos(α) * sin(α) * ψ' * (Jz * Jy + Jy * Jz) * ψ
 end
-function oat(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
-    ε, δ = e.mod_err, e.time_err
-    css_state = eigenstates(-2 * q.Jx)[end][1]
-    Ω(t) = control_functionX(t + δ, c) * (1 + ε)
-    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
-    return timeevolution.schroedinger_dynamic([0.0, c.T], css_state, H)[end][end] # Returns the final state 
+function css_oat(q::ConstantQuantity, c::Control)
+    in = q.css # Initial state
+    H(t, psi) = c.U * q.Jz^2
+    ΔJ(t, psi) = ΔJ_oat(psi, q) / (c.N / 4) |> real
+    # return timeevolution.schroedinger_dynamic([0.0, c.T], in, H)[end][end] # Returns the final state 
+    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
 end
-oat(q::ConstantQuantity, c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity_css(q, c, corrections(corrections(c)), e)
-"""
-    our(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error = Error(0.0, 0.0))
-Start the simulation from the ground state of _our_ Hamiltonian and evolve it using the Hamiltonian of the system under study.
-It returns the state at the final time.
-"""
-function our(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error=Error(0.0, 0.0))
-    ε, δ = e.mod_err, e.time_err
+function gs_oat(q::ConstantQuantity, c::Control)
     in = q.ψ0
-    Ω(t) = control_functionX(t + δ, c, corrs) * (1 + ε)
-    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
-    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H)[end][end]
+    H(t, psi) = c.U * q.Jz^2
+    ΔJ(t, psi) = ΔJ_oat(psi, q) / (c.N / 4) |> real
+    # return timeevolution.schroedinger_dynamic([0.0, c.T], in, H)[end][end] # Returns the final state 
+    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
 end
-function our(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
-    ε, δ = e.mod_err, e.time_err
+function gs_ibjj(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64})
     in = q.ψ0
-    Ω(t) = control_functionX(t + δ, c) * (1 + ε)
+    Ω(t) = control_functionX(t, c, corrs)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
-    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H)[end][end]
+    ΔJ(t, psi) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
+    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
 end
-"""
-    fidelities(c::Control, tfs::AbstractVector{Float64})
-Calculate the fidelity of the control object `c` at the final times `tfs` for different values of the final time
-"""
-function fidelities(c::Control, tfs::AbstractVector{Float64})
-    q = ConstantQuantity(c)
-    fid = zeros(length(tfs))
-    p = Progress(length(tfs), 1, "Calculating fidelities")
-    Threads.@threads for index in eachindex(tfs)
-        cl = EBJJ.c_time(c, tfs[index])
-        fid[index] = EBJJ.fidelity(q, cl)
-        next!(p)
-    end
-    return fid
-end
-function fidelities_css(c::Control, tfs::AbstractVector{Float64})
-    q = ConstantQuantity(c)
-    fid = zeros(length(tfs))
-    p = Progress(length(tfs), 1, "Calculating fidelities")
-    Threads.@threads for index in eachindex(tfs)
-        cl = EBJJ.c_time(c, tfs[index])
-        fid[index] = fidelity_css(q, cl)
-        next!(p)
-    end
-    return fid
-end
-"""
-    robustnesses(c::Control, tfs::AbstractVector{Float64}, ε::AbstractError)
-    Calculate the robustness of the control object `c` at the final times `tfs` for different values of the final time in the array `tfs`
-"""
-function robustnesses(c::Control, tfs::AbstractVector{Float64}, ε::AbstractError)
-    q = ConstantQuantity(c)
-    rob = zeros(length(tfs))
-    p = Progress(length(tfs), 1, "Calculating robustnesses")
-    Threads.@threads for index in eachindex(tfs)
-        cl = EBJJ.c_time(c, tfs[index])
-        rob[index] = EBJJ.robustness(q, cl, ε) |> abs
-        next!(p)
-    end
-    return rob
-end
-"""
-    kngn(c::Control, tfs::AbstractVector{Float64})
-Return the value of both the kn and the gn for a control object `c` at the final times `tfs` for different values of the final time in the array `tfs`
-"""
-function kngn(c::Control, tfs::AbstractVector{Float64})
-    corrs = []
-    Threads.@threads for index in eachindex(tfs)
-        cl = EBJJ.c_time(c, tfs[index])
-        push!(corrs, EBJJ.corrections(cl))
-    end
-    return corrs
+function gs_ibjj(q::ConstantQuantity, c::ControlSTA)
+    in = q.ψ0
+    Ω(t) = control_functionX(t, c)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    ΔJ(t, psi) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
+    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
 end
 
 using EBJJ, Plots, DelimitedFiles
@@ -127,56 +72,40 @@ max_state = 2
 nλ = 2
 U = 0.05
 N = 50
-t0, tf = 0.002, 0.2
+t0, tf = 0.002, 0.6
 Ωf = 0.1
 tfs = range(t0, tf, length=10)
-c = ControlFull(N, Ωf, U, t0, nλ, 2:2:max_state);
+c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
 
-function αₘ(ψ::Ket, q::ConstantQuantity)
-    Jz, Jy = q.Jz, q.Jy
-    num = ψ' * (Jz * Jy + Jy * Jz) * ψ
-    den = ψ' * Jz^2 * ψ - ψ' * Jy^2 * ψ
-    return 1 / 2 * atan(num / den) |> real
-end
-function squeezing(ψ::Ket, q::ConstantQuantity, α::Float64)
-    Jz, Jy = q.Jz, q.Jy
-    return cos(α)^2 * ψ' * Jz^2 * ψ + sin(α)^2 * ψ' * Jy^2 * ψ + cos(α) * sin(α) * ψ' * (Jz * Jy + Jy * Jz) * ψ
-end
-function squeezing_css(cs::ControlSTA, tfs=AbstractVector{Float64})
-    q = ConstantQuantity(cs)
-    ξs = zeros(length(tfs))
+function squeezing_css(c::Control, tfs=AbstractVector{Float64})
+    q = ConstantQuantity(c)
+    ξs = zeros(4, length(tfs))
     p = Progress(length(tfs), 1, "Calculating ξN")
     Threads.@threads for index in eachindex(tfs)
-        cl = EBJJ.c_time(cs, tfs[index])
-        css = oat(q, cl)
-        α = αₘ(css, q)
-        ξs[index] = squeezing(css, q, α) / (cs.N / 4) |> real
+        cl = EBJJ.c_time(c, tfs[index])
+        corrs = corrections(corrections(cl))
+        cs = ControlSTA(cl)
+        ξs[1, index] = css_oat(q, cl)
+        ξs[2,index] = gs_oat(q, cl)
+        ξs[3, index] = gs_ibjj(q, cs)
+        ξs[4, index] = gs_ibjj(q, cl, corrs)
         next!(p)
     end
     return ξs
 end
-function squeezing_ξ(q::ConstantQuantity, c::ControlSTA)
-    Ω(t) = control_function(t, c)
-    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
-    ΔJ(t, psi) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
-    return timeevolution.schroedinger_dynamic([0.:c.T;], q.ψ0, H; fout=ΔJ)[2][end]
-end
-function squeezing_ξ(q::ConstantQuantity, c::ControlFull)
-    corrs = corrections(corrections(c))
-    Ω(t) = control_function(t, c, corrs)
-    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
-    ΔJ(t, psi) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
-    return timeevolution.schroedinger_dynamic([0.:c.T;], q.ψ0, H; fout=ΔJ)[2][end]
-end
+all = squeezing_css(c, tfs)
+
+plot(tfs, all)
+
 function squeezing_ξ(c::Control, tfs::AbstractVector{Float64})
     q = ConstantQuantity(c)
     ξN = zeros(length(tfs))
     p = Progress(length(tfs), 1, "Calculating ξN")
     Threads.@threads for index in eachindex(tfs)
         cl = EBJJ.c_time(c, tfs[index])
-        ξN[index] = squeezing_ξ(q, cl) 
+        ξN[index] = squeezing_ξ(q, cl)
         next!(p)
     end
     return ξN
