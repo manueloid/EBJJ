@@ -48,7 +48,7 @@ function oat(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     return timeevolution.schroedinger_dynamic([0.0, c.T], css_state, H)[end][end] # Returns the final state 
 end
-oat(q::ConstantQuantity,c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity_css(q, c, corrections(corrections(c)), e)
+oat(q::ConstantQuantity, c::ControlFull, e::Error=Error(0.0, 0.0)) = fidelity_css(q, c, corrections(corrections(c)), e)
 """
     our(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64}, e::Error = Error(0.0, 0.0))
 Start the simulation from the ground state of _our_ Hamiltonian and evolve it using the Hamiltonian of the system under study.
@@ -68,8 +68,6 @@ function our(q::ConstantQuantity, c::ControlSTA, e::Error=Error(0.0, 0.0))
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     return timeevolution.schroedinger_dynamic([0.0, c.T], in, H)[end][end]
 end
-
-
 """
     fidelities(c::Control, tfs::AbstractVector{Float64})
 Calculate the fidelity of the control object `c` at the final times `tfs` for different values of the final time
@@ -127,32 +125,72 @@ end
 using EBJJ, Plots, DelimitedFiles
 max_state = 2
 nλ = 2
-U = .05
+U = 0.05
 N = 50
 t0, tf = 0.002, 0.2
-Ωf = 0.2
-tfs = range(t0, tf, length=10) 
+Ωf = 0.1
+tfs = range(t0, tf, length=10)
 c = ControlFull(N, Ωf, U, t0, nλ, 2:2:max_state);
 cs = ControlSTA(c);
 q = ConstantQuantity(c)
 
-squeezing(state::Ket, q::ConstantQuantity, α::Float64) = dagger(state) * ( cos(α) * q.Jz + sin(α) * q.Jy)^2 * state - (dagger(state) * ( cos(α) * q.Jz + sin(α) * q.Jy) * state)^2 |> real |> s -> s / (c.N / 4)
-ξN(psi, q) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
-sta_state = our(q,cs)
-corrs = corrections(corrections(c))
-esta_state = oat(q, c, corrs)
+function αₘ(ψ::Ket, q::ConstantQuantity)
+    Jz, Jy = q.Jz, q.Jy
+    num = ψ' * (Jz * Jy + Jy * Jz) * ψ
+    den = ψ' * Jz^2 * ψ - ψ' * Jy^2 * ψ
+    return 1 / 2 * atan(num / den) |> real
+end
+function squeezing(ψ::Ket, q::ConstantQuantity, α::Float64)
+    Jz, Jy = q.Jz, q.Jy
+    return cos(α)^2 * ψ' * Jz^2 * ψ + sin(α)^2 * ψ' * Jy^2 * ψ + cos(α) * sin(α) * ψ' * (Jz * Jy + Jy * Jz) * ψ
+end
+function squeezing_css(cs::ControlSTA, tfs=AbstractVector{Float64})
+    q = ConstantQuantity(cs)
+    ξs = zeros(length(tfs))
+    p = Progress(length(tfs), 1, "Calculating ξN")
+    Threads.@threads for index in eachindex(tfs)
+        cl = EBJJ.c_time(cs, tfs[index])
+        css = oat(q, cl)
+        α = αₘ(css, q)
+        ξs[index] = squeezing(css, q, α) / (cs.N / 4) |> real
+        next!(p)
+    end
+    return ξs
+end
+function squeezing_ξ(q::ConstantQuantity, c::ControlSTA)
+    Ω(t) = control_function(t, c)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    ΔJ(t, psi) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
+    return timeevolution.schroedinger_dynamic([0.:c.T;], q.ψ0, H; fout=ΔJ)[2][end]
+end
+function squeezing_ξ(q::ConstantQuantity, c::ControlFull)
+    corrs = corrections(corrections(c))
+    Ω(t) = control_function(t, c, corrs)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    ΔJ(t, psi) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
+    return timeevolution.schroedinger_dynamic([0.:c.T;], q.ψ0, H; fout=ΔJ)[2][end]
+end
+function squeezing_ξ(c::Control, tfs::AbstractVector{Float64})
+    q = ConstantQuantity(c)
+    ξN = zeros(length(tfs))
+    p = Progress(length(tfs), 1, "Calculating ξN")
+    Threads.@threads for index in eachindex(tfs)
+        cl = EBJJ.c_time(c, tfs[index])
+        ξN[index] = squeezing_ξ(q, cl) 
+        next!(p)
+    end
+    return ξN
+end
 
+ξN_css = squeezing_css(cs, tfs)
+ξN_esta = squeezing_ξ(c, tfs)
+ξN_sta = squeezing_ξ(cs, tfs)
 
-αrange = 0.0:0.01:π
-sq = [squeezing(final, q, α) for α in αrange]
-sq_sta, sq_esta = ξN.([sta_state, esta_state], Ref(q))
-min = findmin(sq)
-αrange[min[2]]
-plot(αrange, sq, label = "Squeezing", xlabel = "α", ylabel = "Squeezing")
-hline!([sq_sta], label = "sta")
-hline!([sq_esta], label = "esta")
-
-
+plot()
+plot(tfs, ξN_css, label="eSTA", title="Squeezing parameter")
+plot!(tfs, ξN_esta, label="eSTA")
+plot!(tfs, ξN_sta, label="STA")
+# savefig("/home/manueloid/Desktop/ξN.png")
 
 
 # fid_esta = fidelities(c, tfs)
@@ -163,24 +201,24 @@ fid_sta = fidelities(cs, tfs)
 fid_esta = fidelities(c, tfs)
 
 plot()
-plot(tfs , fid_css_esta, label="eSTA", title = "Fidelity starting from the CSS state")
+plot(tfs, fid_css_esta, label="eSTA", title="Fidelity starting from the CSS state")
 plot!(tfs, fid_css_sta, label="STA")
 # savefig("/home/manueloid/Desktop/fid_css.png")
 # Save data to files 
 
 plot()
-plot(tfs, fid_esta, label="eSTA", title = "Fidelity starting from ψ0")
+plot(tfs, fid_esta, label="eSTA", title="Fidelity starting from ψ0")
 plot!(tfs, fid_sta, label="STA")
 # savefig("/home/manueloid/Desktop/fid_standard.png")
 
 # Control function
 j_sta(t) = control_function(t, cs)
 corrs = corrections(corrections(c))
-j_esta(t) = control_function(t,c, corrs)
-trange = range(0.0, c.T, length = 1000)
+j_esta(t) = control_function(t, c, corrs)
+trange = range(0.0, c.T, length=1000)
 
 plot()
-plot(trange, j_esta.(trange), label="eSTA", title = "Control function, tf = $(c.T)")
+plot(trange, j_esta.(trange), label="eSTA", title="Control function, tf = $(c.T)")
 plot!(trange, j_sta.(trange), label="STA")
 
 savefig("/home/manueloid/Desktop/control_function.png")
@@ -191,8 +229,8 @@ writedlm("/home/manueloid/Desktop/test_sta.dat", hcat(tfs, fid_sta))
 some = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid50esta04.dat")
 some2 = readdlm("/home/manueloid/Repos/ExternalBJJ/data/fidelity/fid50sta04.dat")
 # plot(tfs, fid_esta, label="eSTA")
-plot!(some[:,1], some[:,2], label="eSTA data", style = :dash)
-plot!(some2[:,1], some2[:,2], label="STA data", style = :dash)
+plot!(some[:, 1], some[:, 2], label="eSTA data", style=:dash)
+plot!(some2[:, 1], some2[:, 2], label="STA data", style=:dash)
 
 rob_esta = robustnesses(c, tfs, ModError(1.e-7))
 rob_sta = robustnesses(cs, tfs, ModError(1.e-7))
@@ -201,9 +239,9 @@ plot(tfs, rob_esta, label="eSTA")
 plot!(tfs, rob_sta, label="STA")
 
 using ForwardDiff, EBJJ
-ts = range(0.0, c.T, length = 1000)
-f(t) = control_functionX(t,c, [-1.0, 1.0])
-g(t) = control_functionX(t,c)
+ts = range(0.0, c.T, length=1000)
+f(t) = control_functionX(t, c, [-1.0, 1.0])
+g(t) = control_functionX(t, c)
 plot(ts, f.(ts))
 plot!(ts, g.(ts))
 
