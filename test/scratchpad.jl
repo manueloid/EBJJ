@@ -30,7 +30,6 @@ I will lay out everything inside the body of the function, hoping that I can get
 =#
 
 using EBJJ, ProgressMeter, QuantumOptics
-
 function ΔJ_oat(ψ::Ket, q::ConstantQuantity)
     Jz, Jy = q.Jz, q.Jy
     num = ψ' * (Jz * Jy + Jy * Jz) * ψ
@@ -52,6 +51,13 @@ function gs_oat(q::ConstantQuantity, c::Control)
     # return timeevolution.schroedinger_dynamic([0.0, c.T], in, H)[end][end] # Returns the final state 
     return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
 end
+function css_ibjj(q::ConstantQuantity, c::ControlSTA)
+    in = q.css
+    Ω(t) = control_function(t, c)
+    H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
+    ΔJ(t, psi) = ΔJ_oat(psi, q) / (c.N / 4) |> real
+    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+end
 function gs_ibjj(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64})
     in = q.ψ0
     Ω(t) = control_functionX(t, c, corrs)
@@ -68,36 +74,42 @@ function gs_ibjj(q::ConstantQuantity, c::ControlSTA)
 end
 
 using EBJJ, Plots, DelimitedFiles
-max_state = 2
-nλ = 2
-U = 0.05
+t0,tf = 0.05, 1.0
+tfs = range(t0, tf, length=102)
 N = 50
-t0, tf = 0.002, 0.6
-Ωf = 0.1
-tfs = range(t0, tf, length=10)
-c = ControlFull(N, Ωf, U, tf, nλ, 2:2:max_state);
-cs = ControlSTA(c);
-q = ConstantQuantity(c)
+U, Ωf = 0.1, 0.1
+plot_name = "/home/manueloid/Desktop/sqN_" * string(U) * "_" * string(U * N / (2*Ωf)) * ".png"
 
-function squeezing_css(c::Control, tfs=AbstractVector{Float64})
+function squeezing(c::Control, tfs=AbstractVector{Float64})
     q = ConstantQuantity(c)
-    ξs = zeros(4, length(tfs))
+    ξs = zeros(length(tfs), 5)
     p = Progress(length(tfs), 1, "Calculating ξN")
     Threads.@threads for index in eachindex(tfs)
         cl = EBJJ.c_time(c, tfs[index])
         corrs = corrections(corrections(cl))
         cs = ControlSTA(cl)
-        ξs[1, index] = css_oat(q, cl)
-        ξs[2,index] = gs_oat(q, cl)
-        ξs[3, index] = gs_ibjj(q, cs)
-        ξs[4, index] = gs_ibjj(q, cl, corrs)
+        ξs[index, 1] = css_oat(q, cl)
+        ξs[index, 2] = gs_oat(q, cl)
+        ξs[index, 3] = css_ibjj(q, cs)
+        ξs[index, 4] = gs_ibjj(q, cs)
+        ξs[index, 5] = gs_ibjj(q, cl, corrs)
         next!(p)
     end
     return ξs
 end
-all = squeezing_css(c, tfs)
+function squeezing(U::Float64, Ωf::Float64, tfs=AbstractVector{Float64})
+     N, nλ, max_state = 50, 2, 2
+     c = ControlFull(N, Ωf, U, tfs[end], nλ, 2:2:max_state)
+     return squeezing(c, tfs)
+end
+all = squeezing(U, Ωf, tfs)
 
-plot(tfs, all)
+plot(tfs * U, all, label = ["CSS OAT" "ψ0 OAT" "CSS IBJJ" "ψ0 IBJJ STA" "ψ0 IBJJ eSTA"], xlabel = "tf * χ", 
+   # xlim = [0.01, 0.2], 
+   ylim = [0.0, 1.0], 
+)
+
+savefig(plot_name)
 
 function squeezing_ξ(c::Control, tfs::AbstractVector{Float64})
     q = ConstantQuantity(c)
