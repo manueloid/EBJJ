@@ -73,7 +73,7 @@ function gs_ibjj(q::ConstantQuantity, c::ControlSTA)
     return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
 end
 
-using EBJJ, Plots, DelimitedFiles
+using EBJJ, Plots, DelimitedFiles, ProgressMeter
 t0,tf = 0.05, 1.0
 tfs = range(t0, tf, length=102)
 N = 50
@@ -102,9 +102,9 @@ function squeezing(U::Float64, Ωf::Float64, tfs=AbstractVector{Float64})
      c = ControlFull(N, Ωf, U, tfs[end], nλ, 2:2:max_state)
      return squeezing(c, tfs)
 end
-all = squeezing(U, Ωf, tfs)
+every = squeezing(U, Ωf, tfs)
 
-plot(tfs * U, all, label = ["CSS OAT" "ψ0 OAT" "CSS IBJJ" "ψ0 IBJJ STA" "ψ0 IBJJ eSTA"], xlabel = "tf * χ", 
+plot(tfs * U, every, label = ["CSS OAT" "ψ0 OAT" "CSS IBJJ" "ψ0 IBJJ STA" "ψ0 IBJJ eSTA"], xlabel = "tf * χ", 
    # xlim = [0.01, 0.2], 
    ylim = [0.0, 1.0], 
 )
