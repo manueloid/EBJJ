@@ -61,7 +61,7 @@ t0,tf = 0.05, 1.0
 tfs = range(t0, tf, length=102)
 N = 50
 U, Ωf = 0.4, 0.1
-# plot_name = "/home/manueloid/Desktop/sqN_" * string(U) * "_" * string(U * N / (2*Ωf)) * ".png"
+plot_name = "/home/manueloid/Desktop/sqN_" * string(U) * "_" * string(U * N / (2*Ωf)) * ".png"
 
 function squeezing(c::Control, tfs=AbstractVector{Float64}; Jx::Bool = false)
     q = ConstantQuantity(c)
@@ -86,10 +86,10 @@ function squeezing(U::Float64, Ωf::Float64, tfs=AbstractVector{Float64})
      c = ControlFull(N, Ωf, U, tfs[end], nλ, 2:2:max_state)
      return squeezing(c, tfs)
 end
-every1, every2 = squeezing(U, Ωf, tfs)
+ξN, Jx = squeezing(U, Ωf, tfs)
 
-every_log1 = todecibel.(every1)
-every_log2 = todecibel.(every2)
+ξN_log = todecibel.(ξN)
+Jx_log = todecibel.(Jx)
 tfs = tfs * U
 
 using PGFPlotsX, Colors
@@ -113,36 +113,47 @@ sta_opt = @pgf{color = colors.black, line_width = 1, style = styles.dash}
 css_oat_style = @pgf {color = colors.green, line_width = 1, style = styles.dot_dash}
 css_ibjj_style = @pgf {color = colors.yellow, line_width = 1, style = styles.ldash}
 gs_oat_style = @pgf {color = colors.blue, line_width = 1, style = styles.dot}
+#=
+Breakdown of colors
+- black: STA index 4
+- red: eSTA, index 5
+- blue: ψ0 with OAT, index 2
+- green: CSS with OAT, index 1
+- yellow: CSS with IBJJ index 3
+=#
+
 PGFPlotsX.enable_interactive(false)
 canvas = @pgf Axis({
         name = "canvas",
         width = "8cm",
         height = "8cm",
         xlabel = raw"$\chi t_f$",
-        ylabel = raw"$\xi _N^2$[dB]",
+        ylabel = raw"$\xi _N^2$",
         # raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(a)};}",
-        xticklabel_style = {
+        ticklabel_style = {
             "scaled ticks=false",
             "/pgf/number format/fixed", 
             "/pgf/number format/precision=3",
             },
-        try_min_ticks = 3,
+        # try_min_ticks = 3,
         max_space_between_ticks = "40pt",
-        xmax = 0.05,
-        # ymax = 0.8,
+        xmax = 0.06,
+        # ymax = 0.05,
         # xtick_distance = 0.006 /4,
         enlarge_x_limits = "false",
         enlarge_y_limits = "0.01",
     },
-    {}, Plot(esta_opt, Table(tfs, every_log1[:, 5])),
-    {}, Plot(sta_opt,Table(tfs, every_log1[:, 4])),
-    {}, Plot(css_oat_style, Table(tfs, every_log1[:, 1])),
-    {}, Plot(gs_oat_style, Table(tfs, every_log1[:, 2])),
-    {}, Plot(css_ibjj_style, Table(tfs, every_log1[:, 3])),
+    {}, Plot(esta_opt, Table(tfs, ξN[:, 5])),
+    {}, Plot(sta_opt,Table(tfs, ξN[:, 4])),
+    # {}, Plot(css_oat_style, Table(tfs, ξN[:, 1])),
+    {}, Plot(gs_oat_style, Table(tfs, ξN[:, 2])),
+    {}, Plot(css_ibjj_style, Table(tfs, ξN[:, 3])),
 )
-display("/tmp/sqN.pdf", canvas)
-sqs = every_log1 * (N / 4) ./ every_log2
+plot_name = "/home/manueloid/Desktop/Ueda_zoom" * string(U) * "_" * string(U * N / (2*Ωf)) * ".pdf"
+display(plot_name, canvas)
 
+sqs = todecibel.(ξN * (N / 4)) ./ Jx
+plot_name = "/home/manueloid/Desktop/Wineland_" * string(U) * "_" * string(U * N / (2*Ωf)) * ".pdf"
 canvas = @pgf Axis({
         name = "canvas",
         width = "8cm",
@@ -150,14 +161,14 @@ canvas = @pgf Axis({
         xlabel = raw"$\chi t_f$",
         ylabel = raw"$\xi _s^2$[dB]",
         # raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(a)};}",
-        xticklabel_style = {
+        ticklabel_style = {
             "scaled ticks=false",
             "/pgf/number format/fixed", 
             "/pgf/number format/precision=3",
             },
         try_min_ticks = 3,
         max_space_between_ticks = "40pt",
-        xmax = 0.05,
+        # xmax = 0.05,
         # ymax = 0.8,
         # xtick_distance = 0.006 /4,
         enlarge_x_limits = "false",
@@ -169,7 +180,7 @@ canvas = @pgf Axis({
     {}, Plot(gs_oat_style, Table(tfs, sqs[:, 2])),
     {}, Plot(css_ibjj_style, Table(tfs, sqs[:, 3])),
 )
-display("/tmp/sqs.pdf", canvas)
+display(plot_name, canvas)
 
 
 
