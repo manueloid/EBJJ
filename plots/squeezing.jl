@@ -9,37 +9,50 @@ end
 function css_oat(q::ConstantQuantity, c::Control)
     in = q.css # Initial state
     H(t, psi) = c.U * q.Jz^2
-    ΔJ(t, psi) = ΔJ_oat(psi, q) / (c.N / 4) |> real
-    # return timeevolution.schroedinger_dynamic([0.0, c.T], in, H)[end][end] # Returns the final state 
-    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+    ΔJ(t, psi) = ΔJ_oat(psi, q) |> real
+    ΔJx(t, psi) = (dagger(psi) * (q.Jx)^2 * psi) |> real
+    ξN = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+    Jx =  timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJx)[2][end]
+    return ξN, Jx
 end
 function gs_oat(q::ConstantQuantity, c::Control)
     in = q.ψ0
     H(t, psi) = c.U * q.Jz^2
     ΔJ(t, psi) = ΔJ_oat(psi, q) / (c.N / 4) |> real
-    # return timeevolution.schroedinger_dynamic([0.0, c.T], in, H)[end][end] # Returns the final state 
-    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+    ΔJx(t, psi) = (dagger(psi) * (q.Jx)^2 * psi) |> real
+    ξN = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+    Jx =  timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJx)[2][end]
+    return ξN, Jx
 end
 function css_ibjj(q::ConstantQuantity, c::ControlSTA)
     in = q.css
     Ω(t) = control_function(t, c)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     ΔJ(t, psi) = ΔJ_oat(psi, q) / (c.N / 4) |> real
-    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+    ΔJx(t, psi) = (dagger(psi) * (q.Jx)^2 * psi) |> real
+    ξN = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+    Jx =  timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJx)[2][end]
+    return ξN, Jx
 end
 function gs_ibjj(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64})
     in = q.ψ0
     Ω(t) = control_functionX(t, c, corrs)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     ΔJ(t, psi) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
-    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+    ΔJx(t, psi) = (dagger(psi) * (q.Jx)^2 * psi) |> real
+    ξN = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+    Jx =  timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJx)[2][end]
+    return ξN, Jx
 end
-function gs_ibjj(q::ConstantQuantity, c::ControlSTA)
+function gs_ibjj(q::ConstantQuantity, c::ControlSTA; expectation::Bool = true)
     in = q.ψ0
     Ω(t) = control_functionX(t, c)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     ΔJ(t, psi) = (dagger(psi) * (q.Jz)^2 * psi - (dagger(psi) * (q.Jz) * psi)^2) / (c.N / 4) |> real
-    return timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+    ΔJx(t, psi) = (dagger(psi) * (q.Jx)^2 * psi) |> real
+    ξN = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
+    Jx =  timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJx)[2][end]
+    return ξN, Jx
 end
 todecibel(x) = 10 * log10(x)
 
@@ -50,31 +63,33 @@ N = 50
 U, Ωf = 0.4, 0.1
 # plot_name = "/home/manueloid/Desktop/sqN_" * string(U) * "_" * string(U * N / (2*Ωf)) * ".png"
 
-function squeezing(c::Control, tfs=AbstractVector{Float64})
+function squeezing(c::Control, tfs=AbstractVector{Float64}; Jx::Bool = false)
     q = ConstantQuantity(c)
     ξs = zeros(length(tfs), 5)
+    Jx = zeros(length(tfs), 5)
     p = Progress(length(tfs), 1, "Calculating ξN")
     Threads.@threads for index in eachindex(tfs)
         cl = EBJJ.c_time(c, tfs[index])
         corrs = corrections(corrections(cl))
         cs = ControlSTA(cl)
-        ξs[index, 1] = css_oat(q, cl)
-        ξs[index, 2] = gs_oat(q, cl)
-        ξs[index, 3] = css_ibjj(q, cs)
-        ξs[index, 4] = gs_ibjj(q, cs)
-        ξs[index, 5] = gs_ibjj(q, cl, corrs)
+        ξs[index, 1], Jx[index, 1] = css_oat(q, cl)
+        ξs[index, 2], Jx[index, 2] = gs_oat(q, cl)
+        ξs[index, 3], Jx[index, 3] = css_ibjj(q, cs)
+        ξs[index, 4], Jx[index, 4] = gs_ibjj(q, cs)
+        ξs[index, 5], Jx[index, 5] = gs_ibjj(q, cl, corrs)
         next!(p)
     end
-    return ξs
+    return ξs / (c.N / 4), Jx
 end
 function squeezing(U::Float64, Ωf::Float64, tfs=AbstractVector{Float64})
      N, nλ, max_state = 50, 2, 2
      c = ControlFull(N, Ωf, U, tfs[end], nλ, 2:2:max_state)
      return squeezing(c, tfs)
 end
-every = squeezing(U, Ωf, tfs)
+every1, every2 = squeezing(U, Ωf, tfs)
 
-every_log = todecibel.(every)
+every_log1 = todecibel.(every1)
+every_log2 = todecibel.(every2)
 tfs = tfs * U
 
 using PGFPlotsX, Colors
@@ -119,10 +134,42 @@ canvas = @pgf Axis({
         enlarge_x_limits = "false",
         enlarge_y_limits = "0.01",
     },
-    {}, Plot(esta_opt, Table(tfs, every_log[:, 5])),
-    {}, Plot(sta_opt,Table(tfs, every_log[:, 4])),
-    {}, Plot(css_oat_style, Table(tfs, every_log[:, 1])),
-    {}, Plot(gs_oat_style, Table(tfs, every_log[:, 2])),
-    {}, Plot(css_ibjj_style, Table(tfs, every_log[:, 3])),
+    {}, Plot(esta_opt, Table(tfs, every_log1[:, 5])),
+    {}, Plot(sta_opt,Table(tfs, every_log1[:, 4])),
+    {}, Plot(css_oat_style, Table(tfs, every_log1[:, 1])),
+    {}, Plot(gs_oat_style, Table(tfs, every_log1[:, 2])),
+    {}, Plot(css_ibjj_style, Table(tfs, every_log1[:, 3])),
 )
-display("/tmp/some.pdf", canvas)
+display("/tmp/sqN.pdf", canvas)
+sqs = every_log1 * (N / 4) ./ every_log2
+
+canvas = @pgf Axis({
+        name = "canvas",
+        width = "8cm",
+        height = "8cm",
+        xlabel = raw"$\chi t_f$",
+        ylabel = raw"$\xi _s^2$[dB]",
+        # raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(a)};}",
+        xticklabel_style = {
+            "scaled ticks=false",
+            "/pgf/number format/fixed", 
+            "/pgf/number format/precision=3",
+            },
+        try_min_ticks = 3,
+        max_space_between_ticks = "40pt",
+        xmax = 0.05,
+        # ymax = 0.8,
+        # xtick_distance = 0.006 /4,
+        enlarge_x_limits = "false",
+        enlarge_y_limits = "0.01",
+    },
+    {}, Plot(esta_opt, Table(tfs, sqs[:, 5])),
+    {}, Plot(sta_opt,Table(tfs, sqs[:, 4])),
+    {}, Plot(css_oat_style, Table(tfs, sqs[:, 1])),
+    {}, Plot(gs_oat_style, Table(tfs, sqs[:, 2])),
+    {}, Plot(css_ibjj_style, Table(tfs, sqs[:, 3])),
+)
+display("/tmp/sqs.pdf", canvas)
+
+
+
