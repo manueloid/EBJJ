@@ -11,86 +11,78 @@ function css_oat(q::ConstantQuantity, c::Control)
     in = q.css # Initial state
     H(t, psi) = c.U * q.Jz^2
     ΔJ(t, psi) = ΔJ_oat(psi, q) |> real
-    ΔJx(t, psi) = (dagger(psi) * (q.Jx)^2 * psi) |> real
     ξN = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
-    Jx = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJx)[2][end]
-    return ξN, Jx
+    return ξN
 end
 function gs_oat(q::ConstantQuantity, c::Control)
     in = q.ψ0
     H(t, psi) = c.U * q.Jz^2
     ΔJ(t, psi) = ΔJ_oat(psi, q) |> real
-    ΔJx(t, psi) = (dagger(psi) * (q.Jx)^2 * psi) |> real
     ξN = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
-    Jx = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJx)[2][end]
-    return ξN, Jx
+    return ξN
 end
 function gs_ibjj(q::ConstantQuantity, c::ControlSTA)
     in = q.ψ0
     Ω(t) = control_function(t, c)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     ΔJ(t, psi) = ΔJ_oat(psi, q) |> real
-    ΔJx(t, psi) = (dagger(psi) * (q.Jx)^2 * psi) |> real
     ξN = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
-    Jx = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJx)[2][end]
-    return ξN, Jx
+    return ξN
 end
 function gs_ibjjX(q::ConstantQuantity, c::ControlFull, corrs::Vector{Float64})
     in = q.ψ0
     Ω(t) = control_functionX(t, c, corrs)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     ΔJ(t, psi) = ΔJ_oat(psi, q) |> real
-    ΔJx(t, psi) = (dagger(psi) * (q.Jx)^2 * psi) |> real
     ξN = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
-    Jx = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJx)[2][end]
-    return ξN, Jx
+    return ξN
 end
-function gs_ibjjX(q::ConstantQuantity, c::ControlSTA) 
+function gs_ibjjX(q::ConstantQuantity, c::ControlSTA)
     in = q.ψ0
     Ω(t) = control_functionX(t, c)
     H(t, psi) = -2 * Ω(t) * q.Jx + c.U * q.Jz^2
     ΔJ(t, psi) = ΔJ_oat(psi, q) |> real
-    ΔJx(t, psi) = (dagger(psi) * (q.Jx)^2 * psi) |> real
     ξN = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJ)[2][end]
-    Jx = timeevolution.schroedinger_dynamic([0.0, c.T], in, H; fout=ΔJx)[2][end]
-    return ξN, Jx
+    return ξN
 end
 todecibel(x) = 10 * log10(x)
 # do not need to calculate the CSS with the IBJJ hamiltonian
 # just add the calculation for the non X version of STA
 
-using EBJJ, Plots, DelimitedFiles
+using EBJJ, DelimitedFiles
 N = 400
-Λ0 = 2.5
+Λ0 = 10
 U, Ωf = 2Λ0 / N, 0.1
-t0, tf = 0.0001/U, 0.005 / U
-tfs = range(t0, tf, length= 52)
-# plot_name = "/home/manueloid/Desktop/sqN_" * string(U) * "_" * string(U * N / (2*Ωf)) * ".png"
+t0, tf = 0.0001 / U, 0.005 / U
+tfs = range(t0, tf, length=102)
+data_file = "/home/manueloid/Desktop/Ueda_" * string(round(U, digits=2)) * "_" * string(U * N / (2)) * ".dat"
+# run(`touch $data_file`)
 
 function squeezing(c::Control, tfs)
     q = ConstantQuantity(c)
-    ξs = zeros(length(tfs), 5)
-    Jx = zeros(length(tfs), 5)
+    ξN = zeros(length(tfs), 5)
     p = Progress(length(tfs), 1, "Calculating ξN")
     Threads.@threads for index in eachindex(tfs)
         cl = EBJJ.c_time(c, tfs[index])
         corrs = corrections(corrections(cl))
         cs = ControlSTA(cl)
-        ξs[index, 1], Jx[index, 1] = css_oat(q, cl)
-        ξs[index, 2], Jx[index, 2] = gs_oat(q, cl)
-        ξs[index, 3], Jx[index, 3] = gs_ibjj(q, cs)
-        ξs[index, 4], Jx[index, 4] = gs_ibjjX(q, cs)
-        ξs[index, 5], Jx[index, 5] = gs_ibjjX(q, cl, corrs)
+        ξN[index, 1] = css_oat(q, cl)
+        ξN[index, 2] = gs_oat(q, cl)
+        ξN[index, 3] = gs_ibjj(q, cs)
+        ξN[index, 4] = gs_ibjjX(q, cs)
+        ξN[index, 5] = gs_ibjjX(q, cl, corrs)
         next!(p)
     end
-    return ξs / (c.N / 4), Jx
+    return ξN
 end
-function squeezing(U::Float64, Ωf::Float64, tfs=AbstractVector{Float64})
-    N, nλ, max_state = 50, 2, 2
+function squeezing(U::Float64, Ωf::Float64,N::Int, tfs=AbstractVector{Float64})
+    nλ, max_state =  2, 2
     c = ControlFull(N, Ωf, U, tfs[end], nλ, 2:2:max_state)
-    return squeezing(c, tfs)
+    return squeezing(c, tfs) 
 end
-ξN, Jx = squeezing(U, Ωf, tfs)
+ξN = squeezing(U, Ωf,N, tfs) ./ (N / 4)
+
+writedlm(data_file, hcat(tfs,ξN))
 
 using PGFPlotsX, Colors
 colors = (
@@ -138,7 +130,7 @@ canvas = @pgf Axis({
         max_space_between_ticks = "40pt",
         # xmin = 0.01, 
         ymax = 0.6,
-        # xtick_distance = 0.006 /4
+        xtick_distance = 0.005 /2,
         enlarge_x_limits = "false",
         enlarge_y_limits = "0.01",
     },
@@ -149,7 +141,7 @@ canvas = @pgf Axis({
     {}, Plot(sta_opt, Table(tfs * U, ξN[:, 3])),
     "\\node at (rel axis cs:.8,0.75) {\$ \\Lambda_0 = $( N * U / 2) \$};"
 )
-plot_name = "/home/manueloid/Desktop/Ueda_" * string(round(U, digits=2)) * "_" * string(U * N / (2 * Ωf)) * ".pdf"
+plot_name = "/home/manueloid/Desktop/Ueda_" * string(round(U, digits=2)) * "_" * string(U * N / (2)) * ".pdf"
 display(plot_name, canvas)
 
 sqs = todecibel.(ξN) ./ Jx
