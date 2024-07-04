@@ -53,7 +53,7 @@ N = 400
 Λ0 = 2.5
 U, Ωf = 2Λ0 / N, 0.1
 t0, tf = 0.0002 / U, 0.005 / U
-tfs = range(t0, tf, length=10)
+tfs = range(t0, tf, length=100)
 data_file = "/home/manueloid/Desktop/Ueda_" * string(round(U, digits=2)) * "_" * string(U * N / (2)) * ".dat"
 
 function squeezing(c::Control, tfs)
@@ -79,12 +79,9 @@ function squeezing(U::Float64, Ωf::Float64,N::Int, tfs=AbstractVector{Float64})
     return squeezing(c, tfs) 
 end
 ξN = squeezing(U, Ωf,N, tfs) ./ (N / 4)
+writedlm(data_file, hcat(tfs,ξN))
 
-iostr = open(data_file, "a")
-writedlm(iostr, hcat(tfs,ξN))
-close(iostr)
-# unique(A, dims=1) to get only the unique values along the first dimension
-
+ξN_data = hcat(tfs,ξN)
 using PGFPlotsX, Colors
 colors = (
     black=colorant"#000000",
@@ -135,15 +132,15 @@ canvas = @pgf Axis({
         enlarge_x_limits = "false",
         enlarge_y_limits = "0.01",
     },
-    {}, Plot(esta_opt, Table(tfs * U, ξN[:, 6])),
-    {}, Plot(staX_opt, Table(tfs * U, ξN[:, 5])),
-    {}, Plot(css_oat_style, Table(tfs * U, ξN[:, 2])),
-    {}, Plot(gs_oat_style, Table(tfs * U, ξN[:, 3])),
-    {}, Plot(sta_opt, Table(tfs * U, ξN[:, 4])),
+    {}, Plot(esta_opt, Table(tfs * U, ξN_data[:, 6])),
+    {}, Plot(staX_opt, Table(tfs * U, ξN_data[:, 5])),
+    {}, Plot(css_oat_style, Table(tfs * U, ξN_data[:, 2])),
+    {}, Plot(gs_oat_style, Table(tfs * U, ξN_data[:, 3])),
+    {}, Plot(sta_opt, Table(tfs * U, ξN_data[:, 4])),
     "\\node at (rel axis cs:.8,0.75) {\$ \\Lambda_0 = $( N * U / 2) \$};"
 )
 plot_name = "/home/manueloid/Desktop/Ueda_" * string(round(U, digits=2)) * "_" * string(U * N / (2)) * ".pdf"
-plot_name = "/tmp/fig.pdf"
+# plot_name = "/tmp/fig.pdf"
 display(plot_name, canvas)
 
 sqs = todecibel.(ξN) ./ Jx

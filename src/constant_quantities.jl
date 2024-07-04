@@ -42,9 +42,9 @@ struct ConstantQuantity
     css::Ket
 end
 function ConstantQuantity(N::Int64, Ωf::Float64, U::Float64)
-    Jx = sigmax(SpinBasis(N / 2)) / 2 |> dense       # Jx operator
-    Jy = sigmay(SpinBasis(N / 2)) / 2 |> dense       # Jy operator
-    Jz = sigmaz(SpinBasis(N / 2)) / 2 |> dense       # Jz is a diagonal matrix 
+    Jx = sigmax(SpinBasis(N / 2)) / 2 # Jx operator
+    Jy = sigmay(SpinBasis(N / 2)) / 2 # Jy operator
+    Jz = sigmaz(SpinBasis(N / 2)) / 2 # Jz is a diagonal matrix 
     ψ0 = eigenstates(- 2 * Jx + U * Jz^2)[2][1]      # ground state of the system at time 0 
     ψf = eigenstates(- 2 * Ωf * Jx + U * Jz^2)[2][1] # ground state of the system at time T
     css = eigenstates(- 2 * Jx)[2][1] # CSS initial state

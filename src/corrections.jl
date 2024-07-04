@@ -131,11 +131,11 @@ function corrections(c::ControlFull)
             bh(z - h, h) * exp(-(z / h - 1)^2 / (2 * f2(t)))
         )
         gn::ComplexF64 = hcubature(var -> lhs(var[1] / h, var[2]) * rhs_g(var[1], var[2]),
-            [-3 * r(0.0), 0.0], [3 * r(0.0), c.T],
-            atol=1e-7)[1]
+            [-1 * r(0.0), 0.0], [1 * r(0.0), c.T],
+            atol=1e-6)[1]
         kn::Vector{ComplexF64} = hcubature(var -> lhs(var[1] / h, var[2]) * rhs_k(var[1], var[2]),
-            [-3 * r(0.0), 0.0], [3 * r(0.0), c.T],
-            atol=1e-7)[1]
+            [-1 * r(0.0), 0.0], [1 * r(0.0), c.T],
+            atol=1e-6)[1]
         corrections[i] = Corrs(c, n, kn, gn)
     end
     return corrections
