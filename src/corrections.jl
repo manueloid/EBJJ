@@ -68,18 +68,18 @@ I would rather define the $ G_n $ and $ K_n $ integrals in place, so that I do n
 bh(z::Float64, h::Float64) = abs(z) <= 1 ? √((1 + z + h) * (1 - z)) : 0.0 # One-liner function that returns the piecewise function bₕ(z)
 
 """
-    gradient(tarray::Array{Float64, 1})
+    gradient_int(tarray::Array{Float64, 1})
 Calculate the gradient of the control function, given an array of points in the interval  `0, tf`.
 The output is an array of anonymous functions, where each function is the  i -th term of the gradient.
 This is basically an array of Lagrange polynomials that are 1 at the i-th point and 0 at all the others.
 """
-function gradient_int(tarray::Array{Float64,1})
+function gradient_int(tarray::AbstractArray{Float64,1})
     ncoeffs = length(tarray) - 2
     gradient = Array{Function}(undef, ncoeffs)
     for i in 1:ncoeffs
         yarr = zeros(ncoeffs + 2)
         yarr[i+1] = 1.0
-        gradient[i] = t::Float64 -> t < 0 ? 0.0 : t > 1.0 ? 0.0 : Lagrange(tarray, yarr)(t)
+        gradient[i] = t::Float64 -> t < 0 ? 0.0 : t > 1.0 ? 0.0 : Lagrange(collect(tarray), yarr)(t)
     end
     return gradient
 end
@@ -87,9 +87,7 @@ end
 """
     corrections(c::ControlFull)
 Calculate the corrections to the eSTA protocol, given the `ControlFull` type.
-
 It returns a vector of `Corrs` types, where each element is the correction for the n-th energy level.
-
 Each `Corrs` variable contains the value of the Gₙ and Kₙ integrals that can then be used to calculate the eSTA corrections.
 """
 function corrections(c::ControlFull)
@@ -106,7 +104,7 @@ function corrections(c::ControlFull)
     db(t) = ForwardDiff.derivative(b, t)
     ddb(t) = ForwardDiff.derivative(db, t)
     f(t) = control_functionX(t, c)
-    gradient_functions = gradient_int(collect(0.0:c.T/(λs+1):c.T))
+    gradient_functions = gradient_int(range(0.0, c.T, length=λs + 2))
     grad(t::Float64) = [g(t) for g in gradient_functions]
     f2(t::Float64)  = sqrt(N / (2U)) / b(t)^2 - im * db(t) / (2U * b(t))
     f2c(t::Float64) = sqrt(N / (2U)) / b(t)^2 + im * db(t) / (2U * b(t))
@@ -133,10 +131,10 @@ function corrections(c::ControlFull)
             bh(z - h, h) * exp(-(z / h - 1)^2 / (2 * f2(t)))
         )
         gn::ComplexF64 = hcubature(var -> lhs(var[1] / h, var[2]) * rhs_g(var[1], var[2]),
-            [-6 * r(0.0), 0.0], [6 * r(0.0), c.T],
+            [-3 * r(0.0), 0.0], [3 * r(0.0), c.T],
             atol=1e-7)[1]
         kn::Vector{ComplexF64} = hcubature(var -> lhs(var[1] / h, var[2]) * rhs_k(var[1], var[2]),
-            [-6 * r(0.0), 0.0], [6 * r(0.0), c.T],
+            [-3 * r(0.0), 0.0], [3 * r(0.0), c.T],
             atol=1e-7)[1]
         corrections[i] = Corrs(c, n, kn, gn)
     end

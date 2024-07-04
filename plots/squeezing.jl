@@ -1,4 +1,4 @@
-using EBJJ, ProgressMeter, QuantumOptics
+using EBJJ, ProgressMeter, QuantumOptics, DelimitedFiles
 function ΔJ_oat(ψ::Ket, q::ConstantQuantity)
     Jz, Jy = q.Jz, q.Jy
     num = ψ' * (Jz * Jy + Jy * Jz) * ψ
@@ -49,14 +49,12 @@ todecibel(x) = 10 * log10(x)
 # do not need to calculate the CSS with the IBJJ hamiltonian
 # just add the calculation for the non X version of STA
 
-using EBJJ, DelimitedFiles
 N = 400
-Λ0 = 10
+Λ0 = 2.5
 U, Ωf = 2Λ0 / N, 0.1
-t0, tf = 0.0001 / U, 0.005 / U
-tfs = range(t0, tf, length=102)
+t0, tf = 0.0002 / U, 0.005 / U
+tfs = range(t0, tf, length=10)
 data_file = "/home/manueloid/Desktop/Ueda_" * string(round(U, digits=2)) * "_" * string(U * N / (2)) * ".dat"
-# run(`touch $data_file`)
 
 function squeezing(c::Control, tfs)
     q = ConstantQuantity(c)
@@ -82,7 +80,10 @@ function squeezing(U::Float64, Ωf::Float64,N::Int, tfs=AbstractVector{Float64})
 end
 ξN = squeezing(U, Ωf,N, tfs) ./ (N / 4)
 
-writedlm(data_file, hcat(tfs,ξN))
+iostr = open(data_file, "a")
+writedlm(iostr, hcat(tfs,ξN))
+close(iostr)
+# unique(A, dims=1) to get only the unique values along the first dimension
 
 using PGFPlotsX, Colors
 colors = (
@@ -134,14 +135,15 @@ canvas = @pgf Axis({
         enlarge_x_limits = "false",
         enlarge_y_limits = "0.01",
     },
-    {}, Plot(esta_opt, Table(tfs * U, ξN[:, 5])),
-    {}, Plot(staX_opt, Table(tfs * U, ξN[:, 4])),
-    {}, Plot(css_oat_style, Table(tfs * U, ξN[:, 1])),
-    {}, Plot(gs_oat_style, Table(tfs * U, ξN[:, 2])),
-    {}, Plot(sta_opt, Table(tfs * U, ξN[:, 3])),
+    {}, Plot(esta_opt, Table(tfs * U, ξN[:, 6])),
+    {}, Plot(staX_opt, Table(tfs * U, ξN[:, 5])),
+    {}, Plot(css_oat_style, Table(tfs * U, ξN[:, 2])),
+    {}, Plot(gs_oat_style, Table(tfs * U, ξN[:, 3])),
+    {}, Plot(sta_opt, Table(tfs * U, ξN[:, 4])),
     "\\node at (rel axis cs:.8,0.75) {\$ \\Lambda_0 = $( N * U / 2) \$};"
 )
 plot_name = "/home/manueloid/Desktop/Ueda_" * string(round(U, digits=2)) * "_" * string(U * N / (2)) * ".pdf"
+plot_name = "/tmp/fig.pdf"
 display(plot_name, canvas)
 
 sqs = todecibel.(ξN) ./ Jx
