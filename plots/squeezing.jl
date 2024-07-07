@@ -50,10 +50,10 @@ todecibel(x) = 10 * log10(x)
 # just add the calculation for the non X version of STA
 
 N = 400
-Λ0 = 2.5
+Λ0 = 10
 U, Ωf = 2Λ0 / N, 0.1
-t0, tf = 0.0002 / U, 0.005 / U
-tfs = range(t0, tf, length=100)
+t0, tf = 0.0001 / U, 0.005 / U
+tfs = range(t0, tf, length=202)
 data_file = "/home/manueloid/Desktop/Ueda_" * string(round(U, digits=2)) * "_" * string(U * N / (2)) * ".dat"
 
 function squeezing(c::Control, tfs)
@@ -79,6 +79,7 @@ function squeezing(U::Float64, Ωf::Float64,N::Int, tfs=AbstractVector{Float64})
     return squeezing(c, tfs) 
 end
 ξN = squeezing(U, Ωf,N, tfs) ./ (N / 4)
+
 writedlm(data_file, hcat(tfs,ξN))
 
 ξN_data = hcat(tfs,ξN)
@@ -117,7 +118,7 @@ canvas = @pgf Axis({
         width = "8cm",
         height = "8cm",
         xlabel = raw"$\chi t_f$",
-        ylabel = raw"$\xi _N^2$",
+        ylabel = raw"$\xi _{N,max}^2$",
         # raw"extra description/.code={\node[below left,inner sep=0pt] at (rel axis cs: -0.08,1.0) {(a)};}",
         ticklabel_style = {
             "scaled ticks=false",
@@ -128,7 +129,8 @@ canvas = @pgf Axis({
         max_space_between_ticks = "40pt",
         # xmin = 0.01, 
         ymax = 0.6,
-        xtick_distance = 0.005 /2,
+        xmin = 0.0,
+        xtick_distance = 0.005 /5,
         enlarge_x_limits = "false",
         enlarge_y_limits = "0.01",
     },
@@ -137,7 +139,8 @@ canvas = @pgf Axis({
     {}, Plot(css_oat_style, Table(tfs * U, ξN_data[:, 2])),
     {}, Plot(gs_oat_style, Table(tfs * U, ξN_data[:, 3])),
     {}, Plot(sta_opt, Table(tfs * U, ξN_data[:, 4])),
-    "\\node at (rel axis cs:.8,0.75) {\$ \\Lambda_0 = $( N * U / 2) \$};"
+    VLine({dashed, black}, tfs[54]* U),
+    "\\node at (rel axis cs:.8,0.75) {\$ \\Lambda_0 = $( N * U / 2) \$};",
 )
 plot_name = "/home/manueloid/Desktop/Ueda_" * string(round(U, digits=2)) * "_" * string(U * N / (2)) * ".pdf"
 # plot_name = "/tmp/fig.pdf"
